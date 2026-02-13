@@ -12,6 +12,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from qcert.layout import join_combined_values
+
 try:
     from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 except ImportError:
@@ -118,9 +120,9 @@ def _resolve_placeholders(text: str, record: dict[str, str]) -> str:
 def _draw_text(c, tf: TextFieldDef, record: dict[str, str],
                page_h: float, warn: Optional[Callable]) -> None:
     if tf.combined_columns:
-        # Join multiple columns with the chosen separator
+        # Join multiple columns with smart separator logic
         parts = [record.get(col, "") for col in tf.combined_columns]
-        raw = tf.separator.join(p for p in parts if p)
+        raw = join_combined_values(parts, tf.separator)
     elif tf.source_column:
         raw = record.get(tf.source_column, tf.static_text)
     else:

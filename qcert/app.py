@@ -16,6 +16,7 @@ from .layout import (
     LayoutProfile, TextFieldDef, ImageLayerDef,
     new_text_field, new_image_layer,
     save_layout, load_layout, duplicate_layout, default_layout,
+    join_combined_values,
 )
 from .renderer import render_single, render_batch, _page_size
 from .formatter import sanitize_for_pdf
@@ -363,7 +364,7 @@ class QCertApp:
         ttk.Label(sep_frame, text="Separator:").pack(side=tk.LEFT)
         self._separator_var = tk.StringVar(value=" ")
         sep_combo = ttk.Combobox(sep_frame, textvariable=self._separator_var, width=10,
-                                  values=["(space)", "(none)", " & ", ", ", " - "])
+                                  values=["(space)", "(none)", " & ", " and ", ", ", " - "])
         sep_combo.pack(side=tk.LEFT, padx=4)
         ttk.Label(sep_frame, text="or type custom", foreground="gray").pack(side=tk.LEFT)
 
@@ -1014,7 +1015,7 @@ class QCertApp:
 
             if tf.combined_columns:
                 parts = [record.get(col, "") for col in tf.combined_columns]
-                raw = tf.separator.join(p for p in parts if p)
+                raw = join_combined_values(parts, tf.separator)
             elif tf.source_column:
                 raw = record.get(tf.source_column, tf.static_text)
             else:
@@ -1081,7 +1082,7 @@ class QCertApp:
     def _element_bounds_mm(self, elem) -> Optional[tuple[float, float, float, float]]:
         """Return (x, y, w, h) in mm for an element."""
         if isinstance(elem, TextFieldDef):
-            h = max(elem.font_size * elem.line_spacing * MM_PER_PT * 2, 8.0)
+            h = max(elem.font_size * elem.line_spacing * MM_PER_PT, 8.0)
             return (elem.x, elem.y, elem.width, h)
         elif isinstance(elem, ImageLayerDef):
             return (elem.x, elem.y, elem.width, elem.height)

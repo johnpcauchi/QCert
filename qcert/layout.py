@@ -172,6 +172,35 @@ def default_layout() -> LayoutProfile:
 # Internal helpers
 # ------------------------------------------------------------------
 
+def join_combined_values(parts: list[str], separator: str) -> str:
+    """Join multiple column values with smart separator logic.
+
+    For & / and / , separators: auto-capitalise each part.
+    For & / and with 3+ items: "A, B & C" or "A, B and C".
+    """
+    parts = [p for p in parts if p]
+    if not parts:
+        return ""
+
+    sep_clean = separator.strip()
+    sep_lower = sep_clean.lower()
+    smart = sep_lower in ("&", "and", ",")
+
+    if smart:
+        parts = [p.strip().title() for p in parts]
+
+    if len(parts) == 1:
+        return parts[0]
+
+    # For & / and: use commas between early items, separator before last
+    if sep_lower in ("&", "and"):
+        if len(parts) == 2:
+            return f"{parts[0]} {sep_clean} {parts[1]}"
+        return ", ".join(parts[:-1]) + f" {sep_clean} " + parts[-1]
+
+    return separator.join(parts)
+
+
 def _prune_backups(base_path: str, keep: int = 5) -> None:
     directory = os.path.dirname(base_path) or "."
     base_name = os.path.basename(base_path)
