@@ -32,6 +32,8 @@ GRID_STEP_MM = 5.0
 NUDGE_MM = 0.5
 FINE_NUDGE_MM = 0.1
 MM_PER_PT = 25.4 / 72
+RESIZE_HANDLE_MM = 3.0      # corner handle hit-zone in mm
+MIN_ELEMENT_SIZE_MM = 5.0    # minimum width/height when resizing
 
 
 # ------------------------------------------------------------------
@@ -94,6 +96,9 @@ class QCertApp:
         self._cursor_pos_mm = (0.0, 0.0)
         self._drag_start = None
         self._drag_elem_start = None
+        self._resize_mode = False
+        self._resize_edge = None       # 'tl', 'tr', 'bl', 'br'
+        self._resize_start_size = None # (width, height) at drag start
         self._refreshing = False  # guard against _on_field_select during list rebuilds
 
         self._build_menu()
@@ -914,7 +919,9 @@ class QCertApp:
 
             self._preview_pil = img
             self._preview_image = ImageTk.PhotoImage(img)
-            self._preview_scale = scale
+            # Scale must be in screen-pixels-per-mm for hit-test/drag
+            pw_mm, ph_mm = self.layout.page_dimensions_mm()
+            self._preview_scale = new_w / pw_mm
             self._preview_page_w = iw
             self._preview_page_h = ih
 
@@ -926,6 +933,8 @@ class QCertApp:
             # Draw grid overlay in test mode
             if self._test_mode:
                 self._draw_grid_overlay(new_w, new_h)
+
+            self._draw_selection_handles()
 
         except Exception as exc:
             self.status_var.set(f"Preview render: {exc}")
@@ -1032,6 +1041,9 @@ class QCertApp:
             self.canvas.create_text(ix + iw / 2, iy + ih / 2, text=label,
                                      fill="#e67e22", font=("", 7))
 
+        # Selection handles
+        self._draw_selection_handles()
+
         # Grid in test mode
         if self._test_mode:
             self._draw_grid_overlay(rw, rh, ox, oy)
@@ -1053,7 +1065,7 @@ class QCertApp:
             y += step
 
     # ==============================================================
-    # Canvas interaction (drag-drop, coordinate display)
+    # Canvas interaction (drag-drop, resize, coordinate display)
     # ==============================================================
     def _canvas_to_mm(self, cx, cy) -> tuple[float, float]:
         """Convert canvas pixel coords to mm on the page."""
@@ -1066,22 +1078,85 @@ class QCertApp:
         my = (cy - oy) / scale
         return (mx, my)
 
+    def _element_bounds_mm(self, elem) -> Optional[tuple[float, float, float, float]]:
+        """Return (x, y, w, h) in mm for an element."""
+        if isinstance(elem, TextFieldDef):
+            h = max(elem.font_size * elem.line_spacing * MM_PER_PT * 2, 8.0)
+            return (elem.x, elem.y, elem.width, h)
+        elif isinstance(elem, ImageLayerDef):
+            return (elem.x, elem.y, elem.width, elem.height)
+        return None
+
+    def _corner_hit_test(self, mx, my, elem) -> Optional[str]:
+        """Check if (mx, my) is near a resize corner of elem. Returns 'tl','tr','bl','br' or None."""
+        bounds = self._element_bounds_mm(elem)
+        if not bounds:
+            return None
+        x, y, w, h = bounds
+        tol = RESIZE_HANDLE_MM
+        corners = {
+            'br': (x + w, y + h),
+            'bl': (x, y + h),
+            'tr': (x + w, y),
+            'tl': (x, y),
+        }
+        for name, (cx, cy) in corners.items():
+            if abs(mx - cx) <= tol and abs(my - cy) <= tol:
+                return name
+        return None
+
     def _on_canvas_motion(self, event):
         mx, my = self._canvas_to_mm(event.x, event.y)
         self._cursor_pos_mm = (mx, my)
         self.coord_label.config(text=f"X: {mx:.1f} mm  Y: {my:.1f} mm")
 
+        # Update cursor based on what's under it
+        if self._drag_start:
+            return  # don't change cursor mid-drag
+        elem_id = self._hit_test(mx, my)
+        if elem_id:
+            obj = self._find_element(elem_id)
+            if obj:
+                corner = self._corner_hit_test(mx, my, obj)
+                if corner in ('br', 'tl'):
+                    self.canvas.config(cursor="bottom_right_corner")
+                elif corner in ('bl', 'tr'):
+                    self.canvas.config(cursor="bottom_left_corner")
+                else:
+                    self.canvas.config(cursor="fleur")
+            else:
+                self.canvas.config(cursor="")
+        else:
+            self.canvas.config(cursor="")
+
     def _on_canvas_click(self, event):
         mx, my = self._canvas_to_mm(event.x, event.y)
-        # Find element under cursor
         elem = self._hit_test(mx, my)
         if elem:
             self._selected_element = elem
-            self._drag_start = (event.x, event.y)
-            # Store element start position
             obj = self._find_element(elem)
             if obj:
+                # Check if clicking a resize corner
+                corner = self._corner_hit_test(mx, my, obj)
+                self._drag_start = (event.x, event.y)
                 self._drag_elem_start = (obj.x, obj.y)
+                if corner:
+                    self._resize_mode = True
+                    self._resize_edge = corner
+                    if isinstance(obj, ImageLayerDef):
+                        self._resize_start_size = (obj.width, obj.height)
+                    else:
+                        bounds = self._element_bounds_mm(obj)
+                        self._resize_start_size = (bounds[2], bounds[3]) if bounds else (obj.width, 10.0)
+                else:
+                    self._resize_mode = False
+                    self._resize_edge = None
+                    self._resize_start_size = None
+            self._refresh_preview()  # redraw to show selection handles
+        else:
+            if self._selected_element:
+                self._selected_element = None
+                self._refresh_preview()  # redraw to remove handles
 
     def _on_canvas_drag(self, event):
         if not self._drag_start or not self._drag_elem_start:
@@ -1090,7 +1165,12 @@ class QCertApp:
         dx = (event.x - self._drag_start[0]) / scale
         dy = (event.y - self._drag_start[1]) / scale
         obj = self._find_element(self._selected_element)
-        if obj:
+        if not obj:
+            return
+
+        if self._resize_mode and self._resize_edge and self._resize_start_size:
+            self._handle_resize(obj, dx, dy)
+        else:
             new_x = self._drag_elem_start[0] + dx
             new_y = self._drag_elem_start[1] + dy
             if self._snap_to_grid:
@@ -1098,23 +1178,75 @@ class QCertApp:
                 new_y = round(new_y / GRID_STEP_MM) * GRID_STEP_MM
             obj.x = new_x
             obj.y = new_y
-            self._refresh_preview()
+        self._refresh_preview()
+
+    def _handle_resize(self, obj, dx, dy):
+        """Resize obj based on drag delta and active corner."""
+        edge = self._resize_edge
+        sw, sh = self._resize_start_size
+        sx, sy = self._drag_elem_start
+
+        is_image = isinstance(obj, ImageLayerDef)
+        lock = is_image and obj.lock_aspect
+        aspect = sh / sw if sw > 0 else 1.0
+
+        if edge == 'br':
+            new_w = max(MIN_ELEMENT_SIZE_MM, sw + dx)
+            new_h = max(MIN_ELEMENT_SIZE_MM, sh + dy)
+            if lock:
+                new_h = new_w * aspect
+        elif edge == 'bl':
+            new_w = max(MIN_ELEMENT_SIZE_MM, sw - dx)
+            new_h = max(MIN_ELEMENT_SIZE_MM, sh + dy)
+            if lock:
+                new_h = new_w * aspect
+            obj.x = sx + sw - new_w
+        elif edge == 'tr':
+            new_w = max(MIN_ELEMENT_SIZE_MM, sw + dx)
+            new_h = max(MIN_ELEMENT_SIZE_MM, sh - dy)
+            if lock:
+                new_h = new_w * aspect
+            obj.y = sy + sh - new_h
+        elif edge == 'tl':
+            new_w = max(MIN_ELEMENT_SIZE_MM, sw - dx)
+            if lock:
+                new_h = new_w * aspect
+            else:
+                new_h = max(MIN_ELEMENT_SIZE_MM, sh - dy)
+            obj.x = sx + sw - new_w
+            obj.y = sy + sh - new_h
+        else:
+            return
+
+        if self._snap_to_grid:
+            new_w = max(MIN_ELEMENT_SIZE_MM, round(new_w / GRID_STEP_MM) * GRID_STEP_MM)
+            new_h = max(MIN_ELEMENT_SIZE_MM, round(new_h / GRID_STEP_MM) * GRID_STEP_MM)
+
+        if isinstance(obj, TextFieldDef):
+            obj.width = new_w  # text fields only resize width
+        elif isinstance(obj, ImageLayerDef):
+            obj.width = new_w
+            obj.height = new_h
 
     def _on_canvas_release(self, event):
         if self._drag_start and self._drag_elem_start:
             self._push_undo()
-            # Update property panel if text field is selected
             self._sync_selected_to_panel()
         self._drag_start = None
         self._drag_elem_start = None
+        self._resize_mode = False
+        self._resize_edge = None
+        self._resize_start_size = None
 
     def _hit_test(self, mx, my) -> Optional[str]:
         """Return element id at (mx, my) mm, or None."""
         # Check text fields (reverse order = topmost first)
         for tf in reversed(self.layout.text_fields):
-            fh = tf.font_size * tf.line_spacing * MM_PER_PT * 2  # rough height
-            if tf.x <= mx <= tf.x + tf.width and tf.y <= my <= tf.y + fh:
-                return tf.id
+            bounds = self._element_bounds_mm(tf)
+            if bounds:
+                x, y, w, h = bounds
+                if x <= mx <= x + w and y <= my <= y + h:
+                    return tf.id
         for il in reversed(self.layout.image_layers):
             if il.x <= mx <= il.x + il.width and il.y <= my <= il.y + il.height:
                 return il.id
@@ -1136,9 +1268,44 @@ class QCertApp:
         if isinstance(obj, TextFieldDef):
             self._tf_vars["x"].set(f"{obj.x:.1f}")
             self._tf_vars["y"].set(f"{obj.y:.1f}")
+            self._tf_vars["width"].set(f"{obj.width:.1f}")
         elif isinstance(obj, ImageLayerDef):
             self._img_vars["x"].set(f"{obj.x:.1f}")
             self._img_vars["y"].set(f"{obj.y:.1f}")
+            self._img_vars["width"].set(f"{obj.width:.1f}")
+            self._img_vars["height"].set(f"{obj.height:.1f}")
+
+    def _draw_selection_handles(self):
+        """Draw resize handles on the currently selected element."""
+        obj = self._find_element(self._selected_element)
+        if not obj:
+            return
+        bounds = self._element_bounds_mm(obj)
+        if not bounds:
+            return
+        x, y, w, h = bounds
+        scale = getattr(self, "_preview_scale", 1)
+        ox = getattr(self, "_preview_offset_x", 0)
+        oy = getattr(self, "_preview_offset_y", 0)
+
+        handle_px = 4
+        # Selection outline
+        sx = ox + x * scale
+        sy = oy + y * scale
+        sw = w * scale
+        sh = h * scale
+        self.canvas.create_rectangle(sx, sy, sx + sw, sy + sh,
+                                      outline="#4a90d9", width=2)
+
+        # Corner handles
+        for cx_mm, cy_mm in [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]:
+            cx = ox + cx_mm * scale
+            cy = oy + cy_mm * scale
+            self.canvas.create_rectangle(
+                cx - handle_px, cy - handle_px,
+                cx + handle_px, cy + handle_px,
+                fill="#4a90d9", outline="#ffffff", width=1
+            )
 
     # ==============================================================
     # Nudge, zoom, test mode
