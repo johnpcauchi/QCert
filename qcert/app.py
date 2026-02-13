@@ -504,8 +504,8 @@ class QCertApp:
         )
         if path:
             self.layout.template_pdf = path
-            self._refresh_preview()
             self.status_var.set(f"Background: {os.path.basename(path)}")
+            self._refresh_preview()
 
     def _set_page(self, size: str, orient: str):
         self._push_undo()
@@ -798,6 +798,8 @@ class QCertApp:
 
     def _pdf_bytes_to_image(self, pdf_bytes: bytes) -> Optional[Image.Image]:
         """Convert PDF bytes to a PIL Image. Tries multiple backends."""
+        last_error = None
+
         # Try pdf2image (poppler) first
         try:
             from pdf2image import convert_from_bytes
@@ -806,8 +808,8 @@ class QCertApp:
                 return images[0]
         except ImportError:
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            last_error = exc
 
         # Try fitz (PyMuPDF)
         try:
@@ -821,10 +823,12 @@ class QCertApp:
             return img
         except ImportError:
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            last_error = exc
 
-        # Fallback: render a simple placeholder from layout dimensions
+        # Fallback: report error if backends failed with an exception
+        if last_error:
+            self.status_var.set(f"Preview backend error: {last_error}")
         return None
 
     def _draw_placeholder_preview(self):
