@@ -94,6 +94,7 @@ class QCertApp:
         self._cursor_pos_mm = (0.0, 0.0)
         self._drag_start = None
         self._drag_elem_start = None
+        self._refreshing = False  # guard against _on_field_select during list rebuilds
 
         self._build_menu()
         self._build_ui()
@@ -314,6 +315,7 @@ class QCertApp:
                 var = tk.StringVar(value=default)
                 cb = ttk.Combobox(props, textvariable=var, width=12)
                 cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
+                cb.bind("<<ComboboxSelected>>", self._on_source_column_change)
                 self._col_combo = cb
             elif widget_type == "align":
                 var = tk.StringVar(value=default)
@@ -645,11 +647,15 @@ class QCertApp:
         self._refresh_preview()
 
     def _refresh_field_list(self):
+        self._refreshing = True
         self.fields_listbox.delete(0, tk.END)
         for tf in self.layout.text_fields:
             self.fields_listbox.insert(tk.END, tf.display_label())
+        self._refreshing = False
 
     def _on_field_select(self, _event):
+        if self._refreshing:
+            return
         sel = self.fields_listbox.curselection()
         if not sel:
             return
@@ -684,6 +690,23 @@ class QCertApp:
                 self._separator_var.set("(none)")
             else:
                 self._separator_var.set(sep)
+
+    def _on_source_column_change(self, _event=None):
+        """Auto-apply source column when user picks one from the combo."""
+        sel = self.fields_listbox.curselection()
+        if not sel:
+            return
+        tf = self.layout.text_fields[sel[0]]
+        new_col = self._tf_vars["source_column"].get()
+        if tf.source_column == new_col:
+            return
+        self._push_undo()
+        tf.source_column = new_col
+        if new_col:
+            tf.combined_columns = []
+        self._refresh_field_list()
+        self.fields_listbox.selection_set(sel[0])
+        self._refresh_preview()
 
     def _apply_text_field(self):
         sel = self.fields_listbox.curselection()
@@ -772,14 +795,18 @@ class QCertApp:
         self._refresh_preview()
 
     def _refresh_image_list(self):
+        self._refreshing = True
         self.images_listbox.delete(0, tk.END)
         for il in self.layout.image_layers:
             label = os.path.basename(il.file_path) if il.file_path else "(no file)"
             if il.source_column:
                 label = f"[{il.source_column}]"
             self.images_listbox.insert(tk.END, label)
+        self._refreshing = False
 
     def _on_image_select(self, _event):
+        if self._refreshing:
+            return
         sel = self.images_listbox.curselection()
         if not sel:
             return
