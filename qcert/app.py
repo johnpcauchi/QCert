@@ -617,9 +617,13 @@ class QCertApp:
     def _apply_text_field(self):
         sel = self.fields_listbox.curselection()
         if not sel:
-            messagebox.showinfo("Info", "Select a text field first.")
-            return
-        self._push_undo()
+            # Auto-create a new text field if none exist or none selected
+            self._add_text_field()
+            sel = self.fields_listbox.curselection()
+            if not sel:
+                return
+        else:
+            self._push_undo()
         tf = self.layout.text_fields[sel[0]]
         tf.source_column = self._tf_vars["source_column"].get()
         tf.static_text = self._tf_vars["static_text"].get()

@@ -35,7 +35,9 @@ class TextFieldDef:
     def display_label(self) -> str:
         if self.source_column:
             return f"[{self.source_column}]"
-        return self.static_text[:20] or "(empty)"
+        if self.static_text:
+            return self.static_text[:30] if len(self.static_text) <= 30 else self.static_text[:27] + "..."
+        return "(empty)"
 
 
 @dataclass

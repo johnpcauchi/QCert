@@ -106,9 +106,22 @@ def _render_overlay(layout: LayoutProfile, record: dict[str, str],
     return buf.getvalue()
 
 
+def _resolve_placeholders(text: str, record: dict[str, str]) -> str:
+    """Replace {ColumnName} placeholders in *text* with values from *record*."""
+    import re
+    def _repl(m):
+        key = m.group(1)
+        return record.get(key, m.group(0))
+    return re.sub(r"\{([^{}]+)\}", _repl, text)
+
+
 def _draw_text(c, tf: TextFieldDef, record: dict[str, str],
                page_h: float, warn: Optional[Callable]) -> None:
-    raw = record.get(tf.source_column, tf.static_text) if tf.source_column else tf.static_text
+    if tf.source_column:
+        raw = record.get(tf.source_column, tf.static_text)
+    else:
+        # When no source column, resolve {Column} placeholders in static text
+        raw = _resolve_placeholders(tf.static_text, record)
     if not raw and tf.source_column:
         if warn:
             warn(f"Missing value for column '{tf.source_column}'")
