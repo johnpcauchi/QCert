@@ -93,6 +93,7 @@ class QCertApp:
         self._preview_image: Optional[ImageTk.PhotoImage] = None
         self._test_mode = False
         self._snap_to_grid = False
+        self._center_grid = False
         self._zoom = 1.0
         self._cursor_pos_mm = (0.0, 0.0)
         self._drag_start = None
@@ -162,13 +163,20 @@ class QCertApp:
         main = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
         main.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
-        # --- LEFT: Data panel ---
+        # --- LEFT: Data + Tools panel ---
         left = ttk.Frame(main, width=310)
         main.add(left, weight=0)
-        self._build_data_panel(left)
+        left_pane = ttk.PanedWindow(left, orient=tk.VERTICAL)
+        left_pane.pack(fill=tk.BOTH, expand=True)
+        data_frame = tk.Frame(left_pane, bg="#c8e6c9")  # pastel green
+        left_pane.add(data_frame, weight=1)
+        self._build_data_panel(data_frame)
+        tools_frame = tk.Frame(left_pane, bg="#fff8e1")  # light yellow-cream
+        left_pane.add(tools_frame, weight=0)
+        self._build_tools_panel(tools_frame)
 
         # --- MIDDLE: Controls ---
-        mid = ttk.Frame(main, width=310)
+        mid = tk.Frame(main, bg="#bbdefb")  # pastel light blue
         main.add(mid, weight=0)
         self._build_controls_panel(mid)
 
@@ -186,43 +194,44 @@ class QCertApp:
     # LEFT panel: data import + record nav + data table
     # ------------------------------------------------------------------
     def _build_data_panel(self, parent):
-        ttk.Label(parent, text="Data", font=("", 11, "bold")).pack(anchor=tk.W, padx=4, pady=(4, 0))
+        bg = parent.cget("bg")
+        tk.Label(parent, text="Data", font=("", 13, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(4, 0))
 
-        btn_frame = ttk.Frame(parent)
+        btn_frame = tk.Frame(parent, bg=bg)
         btn_frame.pack(fill=tk.X, padx=4, pady=2)
         ttk.Button(btn_frame, text="Open Spreadsheet…", command=self._open_spreadsheet).pack(side=tk.LEFT)
 
-        self.file_label = ttk.Label(parent, text="No file loaded", foreground="gray")
+        self.file_label = tk.Label(parent, text="No file loaded", fg="gray", bg=bg)
         self.file_label.pack(anchor=tk.W, padx=4)
 
         # Navigation
-        nav = ttk.Frame(parent)
+        nav = tk.Frame(parent, bg=bg)
         nav.pack(fill=tk.X, padx=4, pady=4)
         ttk.Button(nav, text="<< Prev", width=8, command=self._prev_record).pack(side=tk.LEFT)
         self.rec_var = tk.StringVar(value="0 / 0")
-        ttk.Label(nav, textvariable=self.rec_var, width=12, anchor=tk.CENTER).pack(side=tk.LEFT, padx=4)
+        tk.Label(nav, textvariable=self.rec_var, width=12, anchor=tk.CENTER, bg=bg).pack(side=tk.LEFT, padx=4)
         ttk.Button(nav, text="Next >>", width=8, command=self._next_record).pack(side=tk.LEFT)
 
         # Go-to / search
-        sf = ttk.Frame(parent)
+        sf = tk.Frame(parent, bg=bg)
         sf.pack(fill=tk.X, padx=4, pady=2)
-        ttk.Label(sf, text="Go to row:").pack(side=tk.LEFT)
+        tk.Label(sf, text="Go to row:", bg=bg).pack(side=tk.LEFT)
         self.goto_var = tk.StringVar()
         ttk.Entry(sf, textvariable=self.goto_var, width=6).pack(side=tk.LEFT, padx=2)
         ttk.Button(sf, text="Go", command=self._goto_record).pack(side=tk.LEFT)
 
-        sf2 = ttk.Frame(parent)
+        sf2 = tk.Frame(parent, bg=bg)
         sf2.pack(fill=tk.X, padx=4, pady=2)
-        ttk.Label(sf2, text="Search:").pack(side=tk.LEFT)
+        tk.Label(sf2, text="Search:", bg=bg).pack(side=tk.LEFT)
         self.search_var = tk.StringVar()
         ttk.Entry(sf2, textvariable=self.search_var, width=14).pack(side=tk.LEFT, padx=2)
         ttk.Button(sf2, text="Find", command=self._search_records).pack(side=tk.LEFT)
 
         # Data table
-        ttk.Label(parent, text="Current Record", font=("", 10, "bold")).pack(anchor=tk.W, padx=4, pady=(6, 0))
-        tree_frame = ttk.Frame(parent)
+        tk.Label(parent, text="Current Record", font=("", 10, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(6, 0))
+        tree_frame = tk.Frame(parent, bg=bg)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=2)
-        self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"), show="headings", height=12)
+        self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"), show="headings", height=6)
         self.data_tree.heading("Column", text="Column")
         self.data_tree.heading("Value", text="Value")
         self.data_tree.column("Column", width=100)
@@ -232,10 +241,33 @@ class QCertApp:
         self.data_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
 
+    def _build_tools_panel(self, parent):
+        bg = parent.cget("bg")
+        tk.Label(parent, text="Tools", font=("", 13, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(4, 0))
+
+        # Center Grid toggle
+        self._center_grid_var = tk.BooleanVar(value=False)
+        grid_btn = tk.Checkbutton(parent, text="Center Grid", variable=self._center_grid_var,
+                                   bg=bg, activebackground=bg, anchor=tk.W,
+                                   command=self._toggle_center_grid)
+        grid_btn.pack(fill=tk.X, padx=8, pady=2)
+
+        # Center Text Field button
+        ttk.Button(parent, text="Center Selected Field", command=self._center_selected_field).pack(
+            fill=tk.X, padx=8, pady=2)
+
+        # Insert Date button
+        ttk.Button(parent, text="Insert Date", command=self._insert_date_field).pack(
+            fill=tk.X, padx=8, pady=(2, 8))
+
     # ------------------------------------------------------------------
     # MIDDLE panel: field / image controls
     # ------------------------------------------------------------------
     def _build_controls_panel(self, parent):
+        bg = parent.cget("bg") if isinstance(parent, tk.Frame) else None
+        if bg:
+            tk.Label(parent, text="Fields & Layers", font=("", 13, "bold"),
+                     bg=bg).pack(anchor=tk.W, padx=4, pady=(4, 0))
         nb = ttk.Notebook(parent)
         nb.pack(fill=tk.BOTH, expand=True, padx=2)
 
@@ -635,7 +667,8 @@ class QCertApp:
     # ==============================================================
     def _add_text_field(self):
         self._push_undo()
-        tf = new_text_field()
+        pw, ph = self.layout.page_dimensions_mm()
+        tf = new_text_field(x=(pw - 100) / 2, y=ph / 2, width=100)
         self.layout.text_fields.append(tf)
         self._refresh_field_list()
         self.fields_listbox.selection_set(tk.END)
@@ -778,6 +811,84 @@ class QCertApp:
         self.fields_listbox.selection_set(sel[0])
         self._refresh_preview()
         self.status_var.set(f"Combined {len(combined)} columns with separator '{tf.separator}'")
+
+    # ==============================================================
+    # Tools panel actions
+    # ==============================================================
+    def _toggle_center_grid(self):
+        self._center_grid = self._center_grid_var.get()
+        self._refresh_preview()
+
+    def _center_selected_field(self):
+        """Center the selected text field or image horizontally on the page."""
+        obj = self._find_element(self._selected_element)
+        if not obj:
+            sel = self.fields_listbox.curselection()
+            if sel:
+                obj = self.layout.text_fields[sel[0]]
+        if not obj:
+            self.status_var.set("Select a field first")
+            return
+        self._push_undo()
+        pw, ph = self.layout.page_dimensions_mm()
+        bounds = self._element_bounds_mm(obj)
+        if bounds:
+            _, _, w, h = bounds
+            obj.x = (pw - w) / 2
+            obj.y = (ph - h) / 2
+            self._sync_selected_to_panel()
+            self._refresh_preview()
+            self.status_var.set("Field centered")
+
+    def _insert_date_field(self):
+        """Insert today's date as a new static text field, centered on page."""
+        import datetime
+        today = datetime.date.today()
+        day = today.day
+        # Ordinal suffix
+        if 11 <= day <= 13:
+            suffix = "th"
+        elif day % 10 == 1:
+            suffix = "st"
+        elif day % 10 == 2:
+            suffix = "nd"
+        elif day % 10 == 3:
+            suffix = "rd"
+        else:
+            suffix = "th"
+        date_str = f"{day}{suffix} {today.strftime('%B')}, {today.year}"
+
+        self._push_undo()
+        pw, ph = self.layout.page_dimensions_mm()
+        tf = new_text_field(
+            static_text=date_str,
+            x=(pw - 80) / 2, y=ph / 2, width=80,
+            font_size=12, alignment="center",
+        )
+        self.layout.text_fields.append(tf)
+        self._refresh_field_list()
+        self.fields_listbox.selection_set(tk.END)
+        self._on_field_select(None)
+        self._refresh_preview()
+        self.status_var.set(f"Inserted date: {date_str}")
+
+    def _draw_center_grid(self, page_w_px, page_h_px, ox, oy):
+        """Draw centering guide lines (crosshair + thirds)."""
+        cx = ox + page_w_px / 2
+        cy = oy + page_h_px / 2
+        # Center crosshair
+        self.canvas.create_line(cx, oy, cx, oy + page_h_px,
+                                 fill="#b0b0b0", dash=(4, 4), width=1)
+        self.canvas.create_line(ox, cy, ox + page_w_px, cy,
+                                 fill="#b0b0b0", dash=(4, 4), width=1)
+        # Thirds
+        for frac in (1/3, 2/3):
+            x = ox + page_w_px * frac
+            y = oy + page_h_px * frac
+            self.canvas.create_line(x, oy, x, oy + page_h_px,
+                                     fill="#d0d0d0", dash=(2, 4), width=1)
+            self.canvas.create_line(ox, y, ox + page_w_px, y,
+                                     fill="#d0d0d0", dash=(2, 4), width=1)
 
     # ==============================================================
     # Image layer actions
@@ -934,6 +1045,9 @@ class QCertApp:
             # Draw grid overlay in test mode
             if self._test_mode:
                 self._draw_grid_overlay(new_w, new_h)
+            if self._center_grid:
+                self._draw_center_grid(new_w, new_h,
+                                        self._preview_offset_x, self._preview_offset_y)
 
             self._draw_selection_handles()
 
@@ -1008,10 +1122,11 @@ class QCertApp:
 
         # Draw text field markers
         for tf in self.layout.text_fields:
-            fx = ox + tf.x * scale
-            fy = oy + tf.y * scale
-            fw = tf.width * scale
-            fh = tf.font_size * tf.line_spacing * scale / 2.5  # approximate
+            bx, by, bw, bh = self._element_bounds_mm(tf)
+            fx = ox + bx * scale
+            fy = oy + by * scale
+            fw = bw * scale
+            fh = bh * scale
 
             if tf.combined_columns:
                 parts = [record.get(col, "") for col in tf.combined_columns]
@@ -1041,6 +1156,10 @@ class QCertApp:
             label = os.path.basename(il.file_path) if il.file_path else "[img]"
             self.canvas.create_text(ix + iw / 2, iy + ih / 2, text=label,
                                      fill="#e67e22", font=("", 7))
+
+        # Center grid
+        if self._center_grid:
+            self._draw_center_grid(rw, rh, ox, oy)
 
         # Selection handles
         self._draw_selection_handles()
@@ -1082,7 +1201,7 @@ class QCertApp:
     def _element_bounds_mm(self, elem) -> Optional[tuple[float, float, float, float]]:
         """Return (x, y, w, h) in mm for an element."""
         if isinstance(elem, TextFieldDef):
-            h = max(elem.font_size * elem.line_spacing * MM_PER_PT, 8.0)
+            h = elem.font_size * elem.line_spacing * MM_PER_PT
             return (elem.x, elem.y, elem.width, h)
         elif isinstance(elem, ImageLayerDef):
             return (elem.x, elem.y, elem.width, elem.height)
@@ -1241,11 +1360,13 @@ class QCertApp:
 
     def _hit_test(self, mx, my) -> Optional[str]:
         """Return element id at (mx, my) mm, or None."""
+        min_click = 4.0  # mm — minimum clickable zone so small elements are easy to hit
         # Check text fields (reverse order = topmost first)
         for tf in reversed(self.layout.text_fields):
             bounds = self._element_bounds_mm(tf)
             if bounds:
                 x, y, w, h = bounds
+                h = max(h, min_click)
                 if x <= mx <= x + w and y <= my <= y + h:
                     return tf.id
         for il in reversed(self.layout.image_layers):
