@@ -280,7 +280,7 @@ class QCertApp:
         ttk.Button(top, text="- Remove", command=self._remove_text_field).pack(side=tk.LEFT, padx=4)
 
         # Listbox of fields
-        self.fields_listbox = tk.Listbox(scroll_inner, height=6)
+        self.fields_listbox = tk.Listbox(scroll_inner, height=6, exportselection=False)
         self.fields_listbox.pack(fill=tk.X, padx=4, pady=2)
         self.fields_listbox.bind("<<ListboxSelect>>", self._on_field_select)
 
@@ -368,7 +368,7 @@ class QCertApp:
         ttk.Button(top, text="+ Add Image", command=self._add_image_layer).pack(side=tk.LEFT)
         ttk.Button(top, text="- Remove", command=self._remove_image_layer).pack(side=tk.LEFT, padx=4)
 
-        self.images_listbox = tk.Listbox(parent, height=5)
+        self.images_listbox = tk.Listbox(parent, height=5, exportselection=False)
         self.images_listbox.pack(fill=tk.X, padx=4, pady=2)
         self.images_listbox.bind("<<ListboxSelect>>", self._on_image_select)
 
@@ -688,13 +688,9 @@ class QCertApp:
     def _apply_text_field(self):
         sel = self.fields_listbox.curselection()
         if not sel:
-            # Auto-create a new text field if none exist or none selected
-            self._add_text_field()
-            sel = self.fields_listbox.curselection()
-            if not sel:
-                return
-        else:
-            self._push_undo()
+            messagebox.showinfo("Info", "Click '+ Add Text Field' first, then configure and Apply.")
+            return
+        self._push_undo()
         tf = self.layout.text_fields[sel[0]]
         tf.source_column = self._tf_vars["source_column"].get()
         tf.static_text = self._tf_vars["static_text"].get()
@@ -730,13 +726,9 @@ class QCertApp:
         """Apply combined columns + separator to the selected text field."""
         sel = self.fields_listbox.curselection()
         if not sel:
-            # Auto-create a new text field if none selected
-            self._add_text_field()
-            sel = self.fields_listbox.curselection()
-            if not sel:
-                return
-        else:
-            self._push_undo()
+            messagebox.showinfo("Info", "Click '+ Add Text Field' first, then select columns and Apply.")
+            return
+        self._push_undo()
 
         tf = self.layout.text_fields[sel[0]]
 
