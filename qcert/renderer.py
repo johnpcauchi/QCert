@@ -117,14 +117,19 @@ def _resolve_placeholders(text: str, record: dict[str, str]) -> str:
 
 def _draw_text(c, tf: TextFieldDef, record: dict[str, str],
                page_h: float, warn: Optional[Callable]) -> None:
-    if tf.source_column:
+    if tf.combined_columns:
+        # Join multiple columns with the chosen separator
+        parts = [record.get(col, "") for col in tf.combined_columns]
+        raw = tf.separator.join(p for p in parts if p)
+    elif tf.source_column:
         raw = record.get(tf.source_column, tf.static_text)
     else:
         # When no source column, resolve {Column} placeholders in static text
         raw = _resolve_placeholders(tf.static_text, record)
-    if not raw and tf.source_column:
+    if not raw and (tf.source_column or tf.combined_columns):
         if warn:
-            warn(f"Missing value for column '{tf.source_column}'")
+            cols = ", ".join(tf.combined_columns) if tf.combined_columns else tf.source_column
+            warn(f"Missing value for column(s) '{cols}'")
         raw = ""
 
     text = sanitize_for_pdf(apply_format(raw, tf.format_rule, warn))

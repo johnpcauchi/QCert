@@ -19,6 +19,8 @@ class TextFieldDef:
     id: str = ""
     source_column: str = ""          # spreadsheet column name (empty = static text)
     static_text: str = ""            # used when source_column is empty
+    combined_columns: list[str] = field(default_factory=list)  # multiple columns to join
+    separator: str = " "             # separator for combined columns
     x: float = 50.0                  # mm from left
     y: float = 50.0                  # mm from top
     width: float = 100.0             # mm
@@ -29,10 +31,13 @@ class TextFieldDef:
     font_colour: str = "#000000"
     line_spacing: float = 1.2
     wrap: bool = True
-    format_rule: str = ""            # e.g. "uppercase", "titlecase", "DD MMM YYYY"
+    format_rule: str = ""            # e.g. "uppercase", "titlecase", "sentencecase", "DD MMM YYYY"
     show_bbox: bool = False
 
     def display_label(self) -> str:
+        if self.combined_columns:
+            cols = " + ".join(f"[{c}]" for c in self.combined_columns)
+            return cols[:30] if len(cols) <= 30 else cols[:27] + "..."
         if self.source_column:
             return f"[{self.source_column}]"
         if self.static_text:

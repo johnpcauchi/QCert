@@ -248,18 +248,44 @@ class QCertApp:
         self._build_output_controls(out_tab)
 
     def _build_text_field_controls(self, parent):
-        top = ttk.Frame(parent)
+        # Scrollable container for the entire text field controls
+        canvas_frame = ttk.Frame(parent)
+        canvas_frame.pack(fill=tk.BOTH, expand=True)
+        scroll_canvas = tk.Canvas(canvas_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=scroll_canvas.yview)
+        scroll_inner = ttk.Frame(scroll_canvas)
+
+        scroll_inner.bind("<Configure>", lambda e: scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all")))
+        scroll_canvas.create_window((0, 0), window=scroll_inner, anchor="nw")
+        scroll_canvas.configure(yscrollcommand=scrollbar.set)
+
+        scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Mousewheel scrolling
+        def _on_mousewheel(event):
+            scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        def _on_mousewheel_linux(event):
+            if event.num == 4:
+                scroll_canvas.yview_scroll(-1, "units")
+            elif event.num == 5:
+                scroll_canvas.yview_scroll(1, "units")
+        scroll_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        scroll_canvas.bind_all("<Button-4>", _on_mousewheel_linux)
+        scroll_canvas.bind_all("<Button-5>", _on_mousewheel_linux)
+
+        top = ttk.Frame(scroll_inner)
         top.pack(fill=tk.X, padx=4, pady=4)
         ttk.Button(top, text="+ Add Text Field", command=self._add_text_field).pack(side=tk.LEFT)
         ttk.Button(top, text="- Remove", command=self._remove_text_field).pack(side=tk.LEFT, padx=4)
 
         # Listbox of fields
-        self.fields_listbox = tk.Listbox(parent, height=6)
+        self.fields_listbox = tk.Listbox(scroll_inner, height=6)
         self.fields_listbox.pack(fill=tk.X, padx=4, pady=2)
         self.fields_listbox.bind("<<ListboxSelect>>", self._on_field_select)
 
-        # Property editor
-        props = ttk.LabelFrame(parent, text="Field Properties")
+        # --- Single Column source ---
+        props = ttk.LabelFrame(scroll_inner, text="Field Properties")
         props.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
         self._tf_vars: dict[str, tk.Variable] = {}
@@ -309,6 +335,32 @@ class QCertApp:
 
         props.columnconfigure(1, weight=1)
         ttk.Button(props, text="Apply", command=self._apply_text_field).grid(row=row, column=0, columnspan=2, pady=4)
+
+        # --- Custom Fields (combine multiple columns) ---
+        custom = ttk.LabelFrame(scroll_inner, text="Custom Fields (combine columns)")
+        custom.pack(fill=tk.X, padx=4, pady=4)
+
+        ttk.Label(custom, text="Select columns to combine:", foreground="gray").pack(anchor=tk.W, padx=4, pady=(4, 0))
+
+        list_frame = ttk.Frame(custom)
+        list_frame.pack(fill=tk.X, padx=4, pady=2)
+        self._combined_listbox = tk.Listbox(list_frame, height=5, selectmode=tk.MULTIPLE,
+                                             exportselection=False)
+        self._combined_listbox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        csb = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self._combined_listbox.yview)
+        self._combined_listbox.configure(yscrollcommand=csb.set)
+        csb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        sep_frame = ttk.Frame(custom)
+        sep_frame.pack(fill=tk.X, padx=4, pady=2)
+        ttk.Label(sep_frame, text="Separator:").pack(side=tk.LEFT)
+        self._separator_var = tk.StringVar(value=" ")
+        sep_combo = ttk.Combobox(sep_frame, textvariable=self._separator_var, width=10,
+                                  values=["(space)", "(none)", " & ", ", ", " - "])
+        sep_combo.pack(side=tk.LEFT, padx=4)
+        ttk.Label(sep_frame, text="or type custom", foreground="gray").pack(side=tk.LEFT)
+
+        ttk.Button(custom, text="Apply Custom Fields", command=self._apply_custom_fields).pack(pady=4)
 
     def _build_image_controls(self, parent):
         top = ttk.Frame(parent)
@@ -448,9 +500,13 @@ class QCertApp:
             return
 
         self.file_label.config(text=os.path.basename(path), foreground="black")
-        # Update column combo
+        # Update column combo and combined columns listbox
         if hasattr(self, "_col_combo"):
             self._col_combo["values"] = [""] + self.data.headers
+        if hasattr(self, "_combined_listbox"):
+            self._combined_listbox.delete(0, tk.END)
+            for hdr in self.data.headers:
+                self._combined_listbox.insert(tk.END, hdr)
         self._refresh_data_view()
         self._refresh_preview()
         self.status_var.set(f"Loaded {self.data.count} records from {os.path.basename(path)}")
@@ -613,6 +669,21 @@ class QCertApp:
         self._tf_vars["wrap"].set(tf.wrap)
         self._tf_vars["format_rule"].set(tf.format_rule)
         self._tf_vars["show_bbox"].set(tf.show_bbox)
+        # Sync combined columns selection
+        if hasattr(self, "_combined_listbox"):
+            self._combined_listbox.selection_clear(0, tk.END)
+            for i in range(self._combined_listbox.size()):
+                if self._combined_listbox.get(i) in tf.combined_columns:
+                    self._combined_listbox.selection_set(i)
+        # Sync separator
+        if hasattr(self, "_separator_var"):
+            sep = tf.separator
+            if sep == " ":
+                self._separator_var.set("(space)")
+            elif sep == "":
+                self._separator_var.set("(none)")
+            else:
+                self._separator_var.set(sep)
 
     def _apply_text_field(self):
         sel = self.fields_listbox.curselection()
@@ -627,6 +698,9 @@ class QCertApp:
         tf = self.layout.text_fields[sel[0]]
         tf.source_column = self._tf_vars["source_column"].get()
         tf.static_text = self._tf_vars["static_text"].get()
+        # If a single source column is set, clear combined columns
+        if tf.source_column:
+            tf.combined_columns = []
         tf.x = float(self._tf_vars["x"].get() or 0)
         tf.y = float(self._tf_vars["y"].get() or 0)
         tf.width = float(self._tf_vars["width"].get() or 100)
@@ -642,6 +716,47 @@ class QCertApp:
         self._refresh_field_list()
         self.fields_listbox.selection_set(sel[0])
         self._refresh_preview()
+
+    def _get_separator_value(self) -> str:
+        """Convert the separator combobox display value to actual separator string."""
+        raw = self._separator_var.get()
+        if raw == "(space)":
+            return " "
+        if raw == "(none)":
+            return ""
+        return raw
+
+    def _apply_custom_fields(self):
+        """Apply combined columns + separator to the selected text field."""
+        sel = self.fields_listbox.curselection()
+        if not sel:
+            # Auto-create a new text field if none selected
+            self._add_text_field()
+            sel = self.fields_listbox.curselection()
+            if not sel:
+                return
+        else:
+            self._push_undo()
+
+        tf = self.layout.text_fields[sel[0]]
+
+        # Get selected columns from the multi-select listbox
+        selected_indices = self._combined_listbox.curselection()
+        combined = [self._combined_listbox.get(i) for i in selected_indices]
+
+        if len(combined) < 2:
+            messagebox.showinfo("Custom Fields", "Select at least 2 columns to combine.")
+            return
+
+        tf.combined_columns = combined
+        tf.separator = self._get_separator_value()
+        # Clear single source_column since we're using combined mode
+        tf.source_column = ""
+
+        self._refresh_field_list()
+        self.fields_listbox.selection_set(sel[0])
+        self._refresh_preview()
+        self.status_var.set(f"Combined {len(combined)} columns with separator '{tf.separator}'")
 
     # ==============================================================
     # Image layer actions
@@ -869,7 +984,13 @@ class QCertApp:
             fw = tf.width * scale
             fh = tf.font_size * tf.line_spacing * scale / 2.5  # approximate
 
-            raw = record.get(tf.source_column, tf.static_text) if tf.source_column else tf.static_text
+            if tf.combined_columns:
+                parts = [record.get(col, "") for col in tf.combined_columns]
+                raw = tf.separator.join(p for p in parts if p)
+            elif tf.source_column:
+                raw = record.get(tf.source_column, tf.static_text)
+            else:
+                raw = tf.static_text
             if not raw:
                 raw = tf.display_label()
 

@@ -32,6 +32,8 @@ def apply_format(value: str, rule: str, warn_callback=None) -> str:
         return value.lower()
     if rl == "titlecase":
         return value.title()
+    if rl == "sentencecase":
+        return value[0].upper() + value[1:].lower() if value else value
 
     # --- today's date ---
     if rl.startswith("today"):
