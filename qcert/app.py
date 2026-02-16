@@ -172,7 +172,7 @@ class QCertApp:
         left_pane.add(data_frame, weight=1)
         self._build_data_panel(data_frame)
         tools_frame = tk.Frame(left_pane, bg="#fff8e1")  # light yellow-cream
-        left_pane.add(tools_frame, weight=0)
+        left_pane.add(tools_frame, weight=1)
         self._build_tools_panel(tools_frame)
 
         # --- MIDDLE: Controls ---
@@ -231,7 +231,7 @@ class QCertApp:
         tk.Label(parent, text="Current Record", font=("", 10, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(6, 0))
         tree_frame = tk.Frame(parent, bg=bg)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=2)
-        self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"), show="headings", height=6)
+        self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"), show="headings", height=4)
         self.data_tree.heading("Column", text="Column")
         self.data_tree.heading("Value", text="Value")
         self.data_tree.column("Column", width=100)
@@ -335,7 +335,7 @@ class QCertApp:
             ("X (mm)", "x", "50", "entry"),
             ("Y (mm)", "y", "50", "entry"),
             ("Width (mm)", "width", "100", "entry"),
-            ("Alignment", "alignment", "left", "align"),
+            ("Alignment", "alignment", "center", "align"),
             ("Font Family", "font_family", "Helvetica", "entry"),
             ("Font Size", "font_size", "12", "entry"),
             ("Weight", "font_weight", "normal", "weight"),
@@ -1410,22 +1410,22 @@ class QCertApp:
         ox = getattr(self, "_preview_offset_x", 0)
         oy = getattr(self, "_preview_offset_y", 0)
 
-        handle_px = 4
-        # Selection outline
-        sx = ox + x * scale
-        sy = oy + y * scale
-        sw = w * scale
-        sh = h * scale
+        # Visual padding so the box clearly surrounds the element
+        pad_px = 4
+        handle_px = 5
+        sx = ox + x * scale - pad_px
+        sy = oy + y * scale - pad_px
+        sw = w * scale + 2 * pad_px
+        sh = h * scale + 2 * pad_px
         self.canvas.create_rectangle(sx, sy, sx + sw, sy + sh,
                                       outline="#4a90d9", width=2)
 
-        # Corner handles
-        for cx_mm, cy_mm in [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]:
-            cx = ox + cx_mm * scale
-            cy = oy + cy_mm * scale
+        # Corner handles (at the padded corners)
+        corners = [(sx, sy), (sx + sw, sy), (sx, sy + sh), (sx + sw, sy + sh)]
+        for cx_px, cy_px in corners:
             self.canvas.create_rectangle(
-                cx - handle_px, cy - handle_px,
-                cx + handle_px, cy + handle_px,
+                cx_px - handle_px, cy_px - handle_px,
+                cx_px + handle_px, cy_px + handle_px,
                 fill="#4a90d9", outline="#ffffff", width=1
             )
 

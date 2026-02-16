@@ -24,7 +24,7 @@ class TextFieldDef:
     x: float = 50.0                  # mm from left
     y: float = 50.0                  # mm from top
     width: float = 100.0             # mm
-    alignment: str = "left"          # left | center | right
+    alignment: str = "center"        # left | center | right
     font_family: str = "Helvetica"
     font_size: float = 12.0          # pt
     font_weight: str = "normal"      # normal | bold
