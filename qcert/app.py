@@ -483,8 +483,8 @@ class QCertApp:
         self.coord_label = ttk.Label(toolbar, text="X: -- Y: --", width=20)
         self.coord_label.pack(side=tk.RIGHT)
 
-        # Canvas
-        self.canvas = tk.Canvas(parent, bg="#d0d0d0", highlightthickness=0)
+        # Canvas — bd=0 ensures no border offset between event coords and canvas coords
+        self.canvas = tk.Canvas(parent, bg="#d0d0d0", highlightthickness=0, bd=0)
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
         self.canvas.bind("<Motion>", self._on_canvas_motion)
@@ -1042,9 +1042,18 @@ class QCertApp:
             self._preview_page_h = ih
 
             self.canvas.delete("all")
-            self.canvas.create_image(cw // 2, ch // 2, image=self._preview_image, anchor=tk.CENTER)
-            self._preview_offset_x = cw // 2 - new_w // 2
-            self._preview_offset_y = ch // 2 - new_h // 2
+            # Place image with NW anchor at a computed top-left so it's centered
+            img_x = (cw - new_w) / 2
+            img_y = (ch - new_h) / 2
+            img_id = self.canvas.create_image(img_x, img_y, image=self._preview_image, anchor=tk.NW)
+            # Query actual bounding box for bulletproof offset
+            bbox = self.canvas.bbox(img_id)
+            if bbox:
+                self._preview_offset_x = bbox[0]
+                self._preview_offset_y = bbox[1]
+            else:
+                self._preview_offset_x = img_x
+                self._preview_offset_y = img_y
 
             # Draw grid overlay in test mode
             if self._test_mode:
@@ -1192,6 +1201,10 @@ class QCertApp:
     # ==============================================================
     # Canvas interaction (drag-drop, resize, coordinate display)
     # ==============================================================
+    def _event_to_canvas(self, event) -> tuple[float, float]:
+        """Convert event coordinates to canvas coordinates (accounts for border/scroll)."""
+        return (self.canvas.canvasx(event.x), self.canvas.canvasy(event.y))
+
     def _canvas_to_mm(self, cx, cy) -> tuple[float, float]:
         """Convert canvas pixel coords to mm on the page."""
         ox = getattr(self, "_preview_offset_x", 0)
@@ -1231,7 +1244,8 @@ class QCertApp:
         return None
 
     def _on_canvas_motion(self, event):
-        mx, my = self._canvas_to_mm(event.x, event.y)
+        cx, cy = self._event_to_canvas(event)
+        mx, my = self._canvas_to_mm(cx, cy)
         self._cursor_pos_mm = (mx, my)
         self.coord_label.config(text=f"X: {mx:.1f} mm  Y: {my:.1f} mm")
 
@@ -1255,7 +1269,8 @@ class QCertApp:
             self.canvas.config(cursor="")
 
     def _on_canvas_click(self, event):
-        mx, my = self._canvas_to_mm(event.x, event.y)
+        cx, cy = self._event_to_canvas(event)
+        mx, my = self._canvas_to_mm(cx, cy)
         elem = self._hit_test(mx, my)
         if elem:
             self._selected_element = elem
@@ -1263,7 +1278,7 @@ class QCertApp:
             if obj:
                 # Check if clicking a resize corner
                 corner = self._corner_hit_test(mx, my, obj)
-                self._drag_start = (event.x, event.y)
+                self._drag_start = (cx, cy)
                 self._drag_elem_start = (obj.x, obj.y)
                 if corner:
                     self._resize_mode = True
@@ -1286,9 +1301,10 @@ class QCertApp:
     def _on_canvas_drag(self, event):
         if not self._drag_start or not self._drag_elem_start:
             return
+        cx, cy = self._event_to_canvas(event)
         scale = getattr(self, "_preview_scale", 1) or 1
-        dx = (event.x - self._drag_start[0]) / scale
-        dy = (event.y - self._drag_start[1]) / scale
+        dx = (cx - self._drag_start[0]) / scale
+        dy = (cy - self._drag_start[1]) / scale
         obj = self._find_element(self._selected_element)
         if not obj:
             return
