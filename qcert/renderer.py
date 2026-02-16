@@ -87,7 +87,8 @@ def _page_size(layout: LayoutProfile):
 # ------------------------------------------------------------------
 
 def _render_overlay(layout: LayoutProfile, record: dict[str, str],
-                    warn: Optional[Callable] = None) -> bytes:
+                    warn: Optional[Callable] = None,
+                    selected_id: Optional[str] = None) -> bytes:
     """Render text fields and image layers into an in-memory PDF page (no background)."""
     buf = io.BytesIO()
     ps = _page_size(layout)
@@ -97,11 +98,11 @@ def _render_overlay(layout: LayoutProfile, record: dict[str, str],
 
     # --- Images first (behind text) ---
     for img_def in layout.image_layers:
-        _draw_image(c, img_def, record, page_h, warn)
+        _draw_image(c, img_def, record, page_h, warn, selected_id=selected_id)
 
     # --- Text fields ---
     for tf in layout.text_fields:
-        _draw_text(c, tf, record, page_h, warn)
+        _draw_text(c, tf, record, page_h, warn, selected_id=selected_id)
 
     c.showPage()
     c.save()
@@ -118,7 +119,8 @@ def _resolve_placeholders(text: str, record: dict[str, str]) -> str:
 
 
 def _draw_text(c, tf: TextFieldDef, record: dict[str, str],
-               page_h: float, warn: Optional[Callable]) -> None:
+               page_h: float, warn: Optional[Callable],
+               selected_id: Optional[str] = None) -> None:
     if tf.combined_columns:
         # Join multiple columns with smart separator logic
         parts = [record.get(col, "") for col in tf.combined_columns]
@@ -163,6 +165,18 @@ def _draw_text(c, tf: TextFieldDef, record: dict[str, str],
         c.setStrokeColor(HexColor("#FF0000"))
         c.setLineWidth(0.5)
         c.rect(x_pt, y_pt - leading, width_pt, leading, stroke=1, fill=0)
+        c.restoreState()
+
+    # Selection indicator (blue bbox when this element is selected)
+    if selected_id and tf.id == selected_id:
+        pad = 2  # points padding around the element
+        c.saveState()
+        c.setStrokeColor(HexColor("#4a90d9"))
+        c.setLineWidth(1.5)
+        c.setDash(3, 2)
+        c.rect(x_pt - pad, y_pt - leading - pad,
+               width_pt + 2 * pad, leading + 2 * pad,
+               stroke=1, fill=0)
         c.restoreState()
 
     if tf.wrap:
@@ -218,7 +232,8 @@ def _wrap_text(text: str, font_name: str, font_size: float,
 
 
 def _draw_image(c, img: ImageLayerDef, record: dict[str, str],
-                page_h: float, warn: Optional[Callable]) -> None:
+                page_h: float, warn: Optional[Callable],
+                selected_id: Optional[str] = None) -> None:
     path = img.file_path
     if img.source_column:
         path = record.get(img.source_column, path)
@@ -253,6 +268,18 @@ def _draw_image(c, img: ImageLayerDef, record: dict[str, str],
         if warn:
             warn(f"Cannot draw image {path}: {exc}")
 
+    # Selection indicator
+    if selected_id and img.id == selected_id:
+        pad = 2
+        c.saveState()
+        c.setStrokeColor(HexColor("#4a90d9"))
+        c.setLineWidth(1.5)
+        c.setDash(3, 2)
+        c.rect(x_pt - pad, y_pt - pad,
+               w_pt + 2 * pad, h_pt + 2 * pad,
+               stroke=1, fill=0)
+        c.restoreState()
+
 
 # ------------------------------------------------------------------
 # Merge overlay onto background template
@@ -285,9 +312,10 @@ def _merge_page(background_pdf: Optional[str], overlay_bytes: bytes) -> bytes:
 # ------------------------------------------------------------------
 
 def render_single(layout: LayoutProfile, record: dict[str, str],
-                  warn: Optional[Callable] = None) -> bytes:
+                  warn: Optional[Callable] = None,
+                  selected_id: Optional[str] = None) -> bytes:
     """Render one certificate and return raw PDF bytes."""
-    overlay = _render_overlay(layout, record, warn)
+    overlay = _render_overlay(layout, record, warn, selected_id=selected_id)
     return _merge_page(layout.template_pdf, overlay)
 
 

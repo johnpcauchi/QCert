@@ -998,7 +998,9 @@ class QCertApp:
 
         warnings: list[str] = []
         try:
-            pdf_bytes = render_single(self.layout, record, warn=lambda m: warnings.append(m))
+            pdf_bytes = render_single(self.layout, record,
+                                      warn=lambda m: warnings.append(m),
+                                      selected_id=self._selected_element)
         except Exception as exc:
             self.status_var.set(f"Preview error: {exc}")
             return
@@ -1017,8 +1019,10 @@ class QCertApp:
             img = self._pdf_bytes_to_image(pdf_bytes)
             if img is None:
                 self.status_var.set("Preview: install poppler for full preview, showing placeholder")
+                self._preview_has_pdf = False
                 self._draw_placeholder_preview()
                 return
+            self._preview_has_pdf = True
 
             # Scale to fit canvas
             cw = max(self.canvas.winfo_width(), PREVIEW_MAX_W)
@@ -1053,6 +1057,7 @@ class QCertApp:
 
         except Exception as exc:
             self.status_var.set(f"Preview render: {exc}")
+            self._preview_has_pdf = False
             self._draw_placeholder_preview()
 
         if warnings:
@@ -1398,7 +1403,12 @@ class QCertApp:
             self._img_vars["height"].set(f"{obj.height:.1f}")
 
     def _draw_selection_handles(self):
-        """Draw resize handles on the currently selected element."""
+        """Draw resize corner handles on the currently selected element.
+
+        The selection rectangle itself is rendered into the PDF by the
+        renderer (pixel-perfect).  Here we only draw the small corner
+        grab-handles as canvas overlays.
+        """
         obj = self._find_element(self._selected_element)
         if not obj:
             return
@@ -1410,18 +1420,21 @@ class QCertApp:
         ox = getattr(self, "_preview_offset_x", 0)
         oy = getattr(self, "_preview_offset_y", 0)
 
-        # Visual padding so the box clearly surrounds the element
-        pad_px = 4
         handle_px = 5
-        sx = ox + x * scale - pad_px
-        sy = oy + y * scale - pad_px
-        sw = w * scale + 2 * pad_px
-        sh = h * scale + 2 * pad_px
-        self.canvas.create_rectangle(sx, sy, sx + sw, sy + sh,
-                                      outline="#4a90d9", width=2)
+        # Element edges in canvas pixels
+        ex = ox + x * scale
+        ey = oy + y * scale
+        ew = w * scale
+        eh = h * scale
 
-        # Corner handles (at the padded corners)
-        corners = [(sx, sy), (sx + sw, sy), (sx, sy + sh), (sx + sw, sy + sh)]
+        # For placeholder preview (no PDF bbox) draw a thin outline too
+        if not getattr(self, "_preview_has_pdf", False):
+            pad = 3
+            self.canvas.create_rectangle(ex - pad, ey - pad, ex + ew + pad, ey + eh + pad,
+                                          outline="#4a90d9", width=2)
+
+        # Corner handles
+        corners = [(ex, ey), (ex + ew, ey), (ex, ey + eh), (ex + ew, ey + eh)]
         for cx_px, cy_px in corners:
             self.canvas.create_rectangle(
                 cx_px - handle_px, cy_px - handle_px,
