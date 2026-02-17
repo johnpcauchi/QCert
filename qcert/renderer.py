@@ -86,12 +86,25 @@ def _page_size(layout: LayoutProfile):
 # Single-page overlay rendering
 # ------------------------------------------------------------------
 
+def _get_template_page_size(template_pdf: Optional[str]):
+    """Return (width_pt, height_pt) of page 1 of the template, or None."""
+    if not template_pdf or not os.path.isfile(template_pdf):
+        return None
+    try:
+        reader = PdfReader(template_pdf)
+        mb = reader.pages[0].mediabox
+        return (float(mb.width), float(mb.height))
+    except Exception:
+        return None
+
+
 def _render_overlay(layout: LayoutProfile, record: dict[str, str],
                     warn: Optional[Callable] = None,
-                    selected_id: Optional[str] = None) -> bytes:
+                    selected_id: Optional[str] = None,
+                    page_size_override=None) -> bytes:
     """Render text fields and image layers into an in-memory PDF page (no background)."""
     buf = io.BytesIO()
-    ps = _page_size(layout)
+    ps = page_size_override or _page_size(layout)
     page_w, page_h = ps
 
     c = rl_canvas.Canvas(buf, pagesize=ps)
@@ -315,7 +328,12 @@ def render_single(layout: LayoutProfile, record: dict[str, str],
                   warn: Optional[Callable] = None,
                   selected_id: Optional[str] = None) -> bytes:
     """Render one certificate and return raw PDF bytes."""
-    overlay = _render_overlay(layout, record, warn, selected_id=selected_id)
+    # Use the template's page dimensions so the overlay coordinate system
+    # matches the background — this prevents content from shifting when
+    # the template dimensions differ from layout.page_size.
+    bg_size = _get_template_page_size(layout.template_pdf)
+    overlay = _render_overlay(layout, record, warn, selected_id=selected_id,
+                              page_size_override=bg_size)
     return _merge_page(layout.template_pdf, overlay)
 
 

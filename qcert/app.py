@@ -11,6 +11,11 @@ from typing import Optional
 
 from PIL import Image, ImageTk
 
+try:
+    from PyPDF2 import PdfReader
+except ImportError:
+    from PyPDF2 import PdfFileReader as PdfReader
+
 from .data_import import DataStore
 from .layout import (
     LayoutProfile, TextFieldDef, ImageLayerDef,
@@ -1035,8 +1040,12 @@ class QCertApp:
 
             self._preview_pil = img
             self._preview_image = ImageTk.PhotoImage(img)
-            # Scale must be in screen-pixels-per-mm for hit-test/drag
-            pw_mm, ph_mm = self.layout.page_dimensions_mm()
+            # Scale must be in screen-pixels-per-mm for hit-test/drag.
+            # Use actual PDF page dimensions (from template if present)
+            # rather than layout.page_dimensions_mm(), because when a
+            # template PDF has different dimensions the rendered image
+            # represents the template's page, not the layout's.
+            pw_mm, ph_mm = self._actual_page_dims_mm(pdf_bytes)
             self._preview_scale = new_w / pw_mm
             self._preview_page_w = iw
             self._preview_page_h = ih
@@ -1071,6 +1080,20 @@ class QCertApp:
 
         if warnings:
             self.status_var.set(f"Warnings: {'; '.join(warnings[:3])}")
+
+    def _actual_page_dims_mm(self, pdf_bytes: bytes) -> tuple[float, float]:
+        """Extract actual page dimensions (width, height) in mm from rendered PDF bytes.
+
+        Falls back to layout.page_dimensions_mm() if extraction fails.
+        """
+        try:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            mb = reader.pages[0].mediabox
+            w_mm = float(mb.width) * 25.4 / 72.0
+            h_mm = float(mb.height) * 25.4 / 72.0
+            return (w_mm, h_mm)
+        except Exception:
+            return self.layout.page_dimensions_mm()
 
     def _pdf_bytes_to_image(self, pdf_bytes: bytes) -> Optional[Image.Image]:
         """Convert PDF bytes to a PIL Image. Tries multiple backends."""
