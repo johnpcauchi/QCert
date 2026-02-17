@@ -1178,7 +1178,7 @@ class QCertApp:
             size_str = f"~{estimated / 1024:.0f} KB per file"
         else:
             size_str = f"~{estimated / (1024 * 1024):.1f} MB per file"
-        self.dpi_est_label.config(text=f"Est. size: {size_str}")
+        self.dpi_est_label.config(text=f"Est. size: {size_str} (varies with content)")
 
     # ==============================================================
     # Preview rendering

@@ -370,6 +370,35 @@ def _merge_page(background_pdf: Optional[str], overlay_bytes: bytes) -> bytes:
 # Public API
 # ------------------------------------------------------------------
 
+def _rasterize_pdf(pdf_bytes: bytes, dpi: int) -> bytes:
+    """Rasterize a vector PDF at *dpi* and return a new PDF with the image.
+
+    Uses PyMuPDF (fitz) to render the page to a pixmap, then embeds
+    the resulting PNG into a fresh single-page PDF via ReportLab.
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page = doc[0]
+    zoom = dpi / 72.0
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat, alpha=False)
+
+    # Page dimensions in points (1/72 inch)
+    page_w = page.rect.width
+    page_h = page.rect.height
+    doc.close()
+
+    # Build a new PDF with the raster image
+    buf = io.BytesIO()
+    c = rl_canvas.Canvas(buf, pagesize=(page_w, page_h))
+    img = ImageReader(io.BytesIO(pix.tobytes("png")))
+    c.drawImage(img, 0, 0, width=page_w, height=page_h)
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
 def render_single(layout: LayoutProfile, record: dict[str, str],
                   warn: Optional[Callable] = None,
                   selected_id: Optional[str] = None) -> bytes:
@@ -380,7 +409,17 @@ def render_single(layout: LayoutProfile, record: dict[str, str],
     bg_size = _get_template_page_size(layout.template_pdf)
     overlay = _render_overlay(layout, record, warn, selected_id=selected_id,
                               page_size_override=bg_size)
-    return _merge_page(layout.template_pdf, overlay)
+    pdf_bytes = _merge_page(layout.template_pdf, overlay)
+
+    # Rasterize at the configured DPI (skip for preview calls that
+    # pass selected_id, and skip when DPI is at the vector default).
+    dpi = getattr(layout, "output_dpi", 150)
+    if selected_id is None and dpi > 0:
+        try:
+            pdf_bytes = _rasterize_pdf(pdf_bytes, dpi)
+        except Exception:
+            pass  # fall back to vector PDF if rasterization fails
+    return pdf_bytes
 
 
 def render_batch(layout: LayoutProfile, records: list[dict[str, str]],
