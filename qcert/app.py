@@ -373,16 +373,15 @@ class QCertApp:
                 var = tk.StringVar(value=str(default))
                 fs_frame = ttk.Frame(props)
                 fs_frame.grid(row=row, column=1, sticky=tk.EW, padx=2)
+                self._fs_label = ttk.Label(fs_frame, text=f"{default} pt", width=6)
+                self._fs_var_ref = var
                 self._fs_scale = ttk.Scale(
                     fs_frame, from_=6, to=72, orient=tk.HORIZONTAL,
                     command=lambda v, sv=None: self._on_fontsize_slide(v),
                 )
                 self._fs_scale.set(float(default))
                 self._fs_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
-                self._fs_label = ttk.Label(fs_frame, text=f"{default} pt", width=6)
                 self._fs_label.pack(side=tk.LEFT, padx=2)
-                # Keep the StringVar synchronised so Apply still works
-                self._fs_var_ref = var
             elif widget_type == "align":
                 var = tk.StringVar(value=default)
                 ttk.Combobox(props, textvariable=var, values=["left", "center", "right"], width=12).grid(row=row, column=1, sticky=tk.EW, padx=2)
@@ -730,6 +729,11 @@ class QCertApp:
         except Exception as exc:
             messagebox.showerror("Load Error", str(exc))
             return
+        # Migrate old filename templates that relied on columns
+        # that might not exist (e.g. {Name}_{ID}.pdf from earlier versions)
+        old = self.layout.output_name_template
+        if old in ("{Name}_{ID}.pdf", "{Name}_{ID}", "{Name}"):
+            self.layout.output_name_template = "certificate_{Index}"
         self._refresh_field_list()
         self._refresh_image_list()
         self._sync_output_controls()

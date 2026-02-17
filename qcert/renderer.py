@@ -35,13 +35,48 @@ _BUILTIN_FONTS = {
 _registered_fonts: set[str] = set()
 
 
+def _find_system_ttf(family: str) -> Optional[str]:
+    """Search common system font directories for a TTF matching *family*."""
+    import glob
+    search_dirs = [
+        "/usr/share/fonts",
+        "/usr/local/share/fonts",
+        os.path.expanduser("~/.local/share/fonts"),
+        os.path.expanduser("~/.fonts"),
+        # macOS
+        "/Library/Fonts",
+        os.path.expanduser("~/Library/Fonts"),
+        "/System/Library/Fonts",
+        # Windows
+        os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"),
+    ]
+    # Build search patterns from the family name
+    clean = family.replace(" ", "")
+    patterns = [
+        f"{family}.ttf", f"{family}.TTF",
+        f"{clean}.ttf", f"{clean}.TTF",
+        f"{family.lower()}.ttf",
+        f"{clean.lower()}.ttf",
+    ]
+    for d in search_dirs:
+        if not os.path.isdir(d):
+            continue
+        for pat in patterns:
+            matches = glob.glob(os.path.join(d, "**", pat), recursive=True)
+            if matches:
+                return matches[0]
+    return None
+
+
 def _resolve_font(family: str, weight: str) -> str:
     """Return a ReportLab font name, registering TTF files if needed."""
     # Map friendly names to ReportLab built-ins
     alias = {
         "helvetica": "Helvetica",
         "times": "Times-Roman",
+        "times new roman": "Times-Roman",
         "courier": "Courier",
+        "arial": "Helvetica",       # Arial ≈ Helvetica in PDF
     }
     base = alias.get(family.lower(), family)
 
@@ -53,7 +88,18 @@ def _resolve_font(family: str, weight: str) -> str:
     if base in _BUILTIN_FONTS or base in _registered_fonts:
         return base
 
-    # Attempt to register as a TrueType file
+    # Try to find and register a system TTF file
+    ttf_path = _find_system_ttf(family)
+    if ttf_path:
+        try:
+            reg_name = family if weight != "bold" else family + "-Bold"
+            pdfmetrics.registerFont(TTFont(reg_name, ttf_path))
+            _registered_fonts.add(reg_name)
+            return reg_name
+        except Exception:
+            pass
+
+    # Attempt to register as a TrueType file path
     for ext in (".ttf", ".TTF"):
         if os.path.isfile(family + ext):
             try:
