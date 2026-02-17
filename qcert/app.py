@@ -332,6 +332,11 @@ class QCertApp:
         props = ttk.LabelFrame(scroll_inner, text="Field Properties")
         props.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
+        _FONT_FAMILIES = [
+            "Aptos", "Helvetica", "Arial", "Times New Roman",
+            "Calibri", "Roboto",
+        ]
+
         self._tf_vars: dict[str, tk.Variable] = {}
         row = 0
         for label, key, default, widget_type in [
@@ -341,13 +346,13 @@ class QCertApp:
             ("Y (mm)", "y", "50", "entry"),
             ("Width (mm)", "width", "100", "entry"),
             ("Alignment", "alignment", "center", "align"),
-            ("Font Family", "font_family", "Helvetica", "entry"),
-            ("Font Size", "font_size", "12", "entry"),
+            ("Font Family", "font_family", "Helvetica", "font"),
+            ("Font Size", "font_size", "12", "fontsize"),
             ("Weight", "font_weight", "normal", "weight"),
             ("Colour", "font_colour", "#000000", "colour"),
             ("Line Spacing", "line_spacing", "1.2", "entry"),
             ("Wrap", "wrap", True, "check"),
-            ("Format Rule", "format_rule", "", "entry"),
+            ("Format Rule", "format_rule", "", "format_rule"),
             ("Show Bbox", "show_bbox", False, "check"),
         ]:
             ttk.Label(props, text=label).grid(row=row, column=0, sticky=tk.W, padx=2, pady=1)
@@ -360,6 +365,24 @@ class QCertApp:
                 cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
                 cb.bind("<<ComboboxSelected>>", self._on_source_column_change)
                 self._col_combo = cb
+            elif widget_type == "font":
+                var = tk.StringVar(value=default)
+                cb = ttk.Combobox(props, textvariable=var, values=_FONT_FAMILIES, width=14)
+                cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
+            elif widget_type == "fontsize":
+                var = tk.StringVar(value=str(default))
+                fs_frame = ttk.Frame(props)
+                fs_frame.grid(row=row, column=1, sticky=tk.EW, padx=2)
+                self._fs_scale = ttk.Scale(
+                    fs_frame, from_=6, to=72, orient=tk.HORIZONTAL,
+                    command=lambda v, sv=None: self._on_fontsize_slide(v),
+                )
+                self._fs_scale.set(float(default))
+                self._fs_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                self._fs_label = ttk.Label(fs_frame, text=f"{default} pt", width=6)
+                self._fs_label.pack(side=tk.LEFT, padx=2)
+                # Keep the StringVar synchronised so Apply still works
+                self._fs_var_ref = var
             elif widget_type == "align":
                 var = tk.StringVar(value=default)
                 ttk.Combobox(props, textvariable=var, values=["left", "center", "right"], width=12).grid(row=row, column=1, sticky=tk.EW, padx=2)
@@ -372,6 +395,13 @@ class QCertApp:
                 f.grid(row=row, column=1, sticky=tk.EW, padx=2)
                 ttk.Entry(f, textvariable=var, width=9).pack(side=tk.LEFT)
                 ttk.Button(f, text="…", width=2, command=lambda v=var: self._pick_colour(v)).pack(side=tk.LEFT)
+            elif widget_type == "format_rule":
+                var = tk.StringVar(value=default)
+                fr_cb = ttk.Combobox(props, textvariable=var, width=14,
+                                     values=["", "uppercase", "lowercase", "titlecase",
+                                             "sentencecase", "DD MMM YYYY", "DD/MM/YYYY",
+                                             "YYYY-MM-DD", "today"])
+                fr_cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
             elif widget_type == "check":
                 var = tk.BooleanVar(value=default)
                 ttk.Checkbutton(props, variable=var).grid(row=row, column=1, sticky=tk.W, padx=2)
@@ -505,6 +535,24 @@ class QCertApp:
 
         sep3 = ttk.Separator(f, orient=tk.HORIZONTAL)
         sep3.pack(fill=tk.X, pady=6)
+
+        # --- DPI slider ---
+        ttk.Label(f, text="Output DPI:", font=("", 9, "bold")).pack(anchor=tk.W)
+        dpi_frame = ttk.Frame(f)
+        dpi_frame.pack(fill=tk.X, pady=2)
+        self.dpi_var = tk.IntVar(value=self.layout.output_dpi)
+        self.dpi_scale = ttk.Scale(dpi_frame, from_=72, to=600,
+                                   variable=self.dpi_var, orient=tk.HORIZONTAL,
+                                   command=self._on_dpi_change)
+        self.dpi_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.dpi_label = ttk.Label(dpi_frame, text=f"{self.layout.output_dpi} DPI", width=8)
+        self.dpi_label.pack(side=tk.LEFT, padx=4)
+        self.dpi_est_label = ttk.Label(f, text="", foreground="gray")
+        self.dpi_est_label.pack(anchor=tk.W)
+        self._update_dpi_estimate()
+
+        sep4 = ttk.Separator(f, orient=tk.HORIZONTAL)
+        sep4.pack(fill=tk.X, pady=6)
 
         # --- Export buttons ---
         ttk.Button(f, text="Export Current Record",
@@ -769,6 +817,8 @@ class QCertApp:
         self._tf_vars["alignment"].set(tf.alignment)
         self._tf_vars["font_family"].set(tf.font_family)
         self._tf_vars["font_size"].set(str(tf.font_size))
+        self._fs_scale.set(tf.font_size)
+        self._fs_label.config(text=f"{int(tf.font_size)} pt")
         self._tf_vars["font_weight"].set(tf.font_weight)
         self._tf_vars["font_colour"].set(tf.font_colour)
         self._tf_vars["line_spacing"].set(str(tf.line_spacing))
@@ -807,6 +857,12 @@ class QCertApp:
         self._refresh_field_list()
         self.fields_listbox.selection_set(sel[0])
         self._refresh_preview()
+
+    def _on_fontsize_slide(self, val):
+        """Update label and StringVar when the font-size slider moves."""
+        size = int(float(val))
+        self._fs_label.config(text=f"{size} pt")
+        self._fs_var_ref.set(str(size))
 
     def _apply_text_field(self):
         sel = self.fields_listbox.curselection()
@@ -1040,14 +1096,18 @@ class QCertApp:
         self.fname_var.set(self.layout.output_name_template)
         self.outmode_var.set(self.layout.output_mode)
         self.outdir_var.set(self.layout.output_dir)
+        self.dpi_var.set(self.layout.output_dpi)
+        self.dpi_label.config(text=f"{self.layout.output_dpi} DPI")
         self._refresh_fname_columns()
         self._update_fname_preview()
         self._update_output_rows_label()
+        self._update_dpi_estimate()
 
     def _apply_output_settings(self):
         self.layout.output_name_template = self.fname_var.get()
         self.layout.output_mode = self.outmode_var.get()
         self.layout.output_dir = self.outdir_var.get()
+        self.layout.output_dpi = self.dpi_var.get()
         self.status_var.set("Output settings applied")
 
     def _browse_output_dir(self):
@@ -1059,10 +1119,9 @@ class QCertApp:
 
     def _refresh_fname_columns(self):
         """Update the column dropdown in the filename builder."""
-        cols = self.data.headers if self.data.rows else []
+        cols = ["Index"] + (self.data.headers if self.data.rows else [])
         self._fname_col_combo["values"] = cols
-        if cols:
-            self._fname_col_combo.current(0)
+        self._fname_col_combo.current(0)
 
     def _insert_fname_column(self):
         """Insert the selected column as a {Column} placeholder into the filename template."""
@@ -1081,7 +1140,9 @@ class QCertApp:
         template = self.fname_var.get()
         record = self.data.current_record if self.data.rows else {}
         if record:
-            preview = safe_filename(template, record) + ".pdf"
+            idx = self.data.current_index
+            total = self.data.count
+            preview = safe_filename(template, record, index=idx, total=total) + ".pdf"
         else:
             preview = template + ".pdf"
         self.fname_preview_var.set(preview)
@@ -1092,6 +1153,28 @@ class QCertApp:
                 text=f"{self.data.count} rows loaded from data")
         else:
             self._output_rows_label.config(text="No data loaded")
+
+    def _on_dpi_change(self, val):
+        dpi = int(float(val))
+        self.dpi_var.set(dpi)
+        self.layout.output_dpi = dpi
+        self.dpi_label.config(text=f"{dpi} DPI")
+        self._update_dpi_estimate()
+
+    def _update_dpi_estimate(self):
+        """Estimate file size based on DPI and page dimensions."""
+        dpi = self.dpi_var.get()
+        w_mm, h_mm = self.layout.page_dimensions_mm()
+        # Approximate: uncompressed RGB raster at this DPI, then ÷ 10 for PDF compression
+        w_px = w_mm / 25.4 * dpi
+        h_px = h_mm / 25.4 * dpi
+        raw_bytes = w_px * h_px * 3  # RGB
+        estimated = raw_bytes / 10   # rough PDF compression ratio
+        if estimated < 1024 * 1024:
+            size_str = f"~{estimated / 1024:.0f} KB per file"
+        else:
+            size_str = f"~{estimated / (1024 * 1024):.1f} MB per file"
+        self.dpi_est_label.config(text=f"Est. size: {size_str}")
 
     # ==============================================================
     # Preview rendering
@@ -1662,7 +1745,9 @@ class QCertApp:
             return
         template = self.layout.output_name_template
         record = self.data.current_record
-        fname = safe_filename(template, record) + ".pdf"
+        idx = self.data.current_index
+        total = self.data.count
+        fname = safe_filename(template, record, index=idx, total=total) + ".pdf"
         path = os.path.join(out_dir, fname)
         warnings: list[str] = []
         try:

@@ -112,10 +112,19 @@ def sanitize_for_pdf(text: str) -> str:
     return text
 
 
-def safe_filename(template: str, record: dict[str, str]) -> str:
+def safe_filename(template: str, record: dict[str, str],
+                  index: int = 0, total: int = 0) -> str:
     """Build a filename from *template* substituting {Column} placeholders,
-    then strip illegal filename characters."""
+    then strip illegal filename characters.
+
+    Special placeholder:
+        {Index}  — 1-based row number, zero-padded to fit *total*
+    """
     result = template
+    # {Index} — 1-based, zero-padded
+    if "{Index}" in result:
+        width = max(1, len(str(total))) if total else 1
+        result = result.replace("{Index}", str(index + 1).zfill(width))
     for key, val in record.items():
         result = result.replace("{" + key + "}", val)
     # Remove characters illegal in Windows filenames

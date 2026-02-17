@@ -362,7 +362,8 @@ def render_batch(layout: LayoutProfile, records: list[dict[str, str]],
     for n, (idx, rec) in enumerate(selected):
         try:
             pdf_bytes = render_single(layout, rec, warn)
-            fname = safe_filename(layout.output_name_template, rec) + ".pdf"
+            fname = safe_filename(layout.output_name_template, rec,
+                                  index=idx, total=len(records)) + ".pdf"
             fpath = os.path.join(output_dir, fname)
             # Avoid overwriting: append index if collision
             if os.path.exists(fpath):

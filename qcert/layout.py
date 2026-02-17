@@ -69,9 +69,10 @@ class LayoutProfile:
     template_pdf: str = ""           # path to background PDF
     text_fields: list[TextFieldDef] = field(default_factory=list)
     image_layers: list[ImageLayerDef] = field(default_factory=list)
-    output_name_template: str = "{Name}"
+    output_name_template: str = "certificate_{Index}"
     output_mode: str = "individual"  # individual | combined
     output_dir: str = ""             # target folder for exports
+    output_dpi: int = 150            # DPI for rasterised output
     version: int = 1
     created: str = ""
     modified: str = ""
