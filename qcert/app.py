@@ -454,19 +454,69 @@ class QCertApp:
 
     def _build_output_controls(self, parent):
         f = ttk.Frame(parent)
-        f.pack(fill=tk.X, padx=8, pady=8)
+        f.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
 
-        ttk.Label(f, text="Filename template:").pack(anchor=tk.W)
+        # --- Output directory ---
+        ttk.Label(f, text="Output folder:", font=("", 9, "bold")).pack(anchor=tk.W)
+        dir_frame = ttk.Frame(f)
+        dir_frame.pack(fill=tk.X, pady=2)
+        self.outdir_var = tk.StringVar(value=self.layout.output_dir)
+        dir_entry = ttk.Entry(dir_frame, textvariable=self.outdir_var)
+        dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(dir_frame, text="Browse…", width=8,
+                   command=self._browse_output_dir).pack(side=tk.LEFT, padx=(4, 0))
+
+        sep1 = ttk.Separator(f, orient=tk.HORIZONTAL)
+        sep1.pack(fill=tk.X, pady=6)
+
+        # --- Filename template ---
+        ttk.Label(f, text="Filename template:", font=("", 9, "bold")).pack(anchor=tk.W)
         self.fname_var = tk.StringVar(value=self.layout.output_name_template)
+        self.fname_var.trace_add("write", lambda *_: self._update_fname_preview())
         ttk.Entry(f, textvariable=self.fname_var).pack(fill=tk.X, pady=2)
-        ttk.Label(f, text="Use {ColumnName} placeholders", foreground="gray").pack(anchor=tk.W)
 
-        ttk.Label(f, text="Output mode:").pack(anchor=tk.W, pady=(8, 0))
+        # Column picker — insert {Column} into the template
+        pick_frame = ttk.Frame(f)
+        pick_frame.pack(fill=tk.X, pady=2)
+        ttk.Label(pick_frame, text="Insert column:").pack(side=tk.LEFT)
+        self._fname_col_combo = ttk.Combobox(pick_frame, state="readonly", width=18)
+        self._fname_col_combo.pack(side=tk.LEFT, padx=4)
+        ttk.Button(pick_frame, text="Add", width=5,
+                   command=self._insert_fname_column).pack(side=tk.LEFT)
+        ttk.Label(f, text="Tip: combine columns like {First}_{Last}",
+                  foreground="gray", font=("", 8)).pack(anchor=tk.W)
+
+        # Live preview of resolved filename
+        self.fname_preview_var = tk.StringVar(value="")
+        ttk.Label(f, text="Preview:").pack(anchor=tk.W, pady=(4, 0))
+        ttk.Label(f, textvariable=self.fname_preview_var,
+                  foreground="#555", wraplength=300).pack(anchor=tk.W)
+
+        sep2 = ttk.Separator(f, orient=tk.HORIZONTAL)
+        sep2.pack(fill=tk.X, pady=6)
+
+        # --- Output mode ---
+        ttk.Label(f, text="Output mode:", font=("", 9, "bold")).pack(anchor=tk.W)
         self.outmode_var = tk.StringVar(value=self.layout.output_mode)
-        ttk.Radiobutton(f, text="One PDF per record", variable=self.outmode_var, value="individual").pack(anchor=tk.W)
-        ttk.Radiobutton(f, text="Combined multi-page PDF", variable=self.outmode_var, value="combined").pack(anchor=tk.W)
+        ttk.Radiobutton(f, text="One PDF per record",
+                        variable=self.outmode_var, value="individual").pack(anchor=tk.W)
+        ttk.Radiobutton(f, text="Combined multi-page PDF",
+                        variable=self.outmode_var, value="combined").pack(anchor=tk.W)
 
-        ttk.Button(f, text="Apply Output Settings", command=self._apply_output_settings).pack(pady=8)
+        sep3 = ttk.Separator(f, orient=tk.HORIZONTAL)
+        sep3.pack(fill=tk.X, pady=6)
+
+        # --- Export buttons ---
+        ttk.Button(f, text="Export Current Record",
+                   command=self._export_current).pack(fill=tk.X, pady=2)
+        ttk.Button(f, text="Export All Records",
+                   command=self._export_all).pack(fill=tk.X, pady=2)
+        ttk.Button(f, text="Export Selected…",
+                   command=self._export_selected).pack(fill=tk.X, pady=2)
+
+        # Row count label (updated when data loads)
+        self._output_rows_label = ttk.Label(f, text="No data loaded", foreground="gray")
+        self._output_rows_label.pack(anchor=tk.W, pady=(6, 0))
 
     # ------------------------------------------------------------------
     # RIGHT panel: certificate preview
@@ -553,6 +603,9 @@ class QCertApp:
             for hdr in self.data.headers:
                 self._combined_listbox.insert(tk.END, hdr)
         self._refresh_data_view()
+        self._refresh_fname_columns()
+        self._update_fname_preview()
+        self._update_output_rows_label()
         self._refresh_preview()
         self.status_var.set(f"Loaded {self.data.count} records from {os.path.basename(path)}")
 
@@ -566,11 +619,13 @@ class QCertApp:
     def _next_record(self):
         self.data.next()
         self._refresh_data_view()
+        self._update_fname_preview()
         self._refresh_preview()
 
     def _prev_record(self):
         self.data.prev()
         self._refresh_data_view()
+        self._update_fname_preview()
         self._refresh_preview()
 
     def _goto_record(self):
@@ -578,6 +633,7 @@ class QCertApp:
             idx = int(self.goto_var.get()) - 1
             self.data.goto(idx)
             self._refresh_data_view()
+            self._update_fname_preview()
             self._refresh_preview()
         except ValueError:
             messagebox.showwarning("Invalid", "Enter a valid row number.")
@@ -983,11 +1039,59 @@ class QCertApp:
     def _sync_output_controls(self):
         self.fname_var.set(self.layout.output_name_template)
         self.outmode_var.set(self.layout.output_mode)
+        self.outdir_var.set(self.layout.output_dir)
+        self._refresh_fname_columns()
+        self._update_fname_preview()
+        self._update_output_rows_label()
 
     def _apply_output_settings(self):
         self.layout.output_name_template = self.fname_var.get()
         self.layout.output_mode = self.outmode_var.get()
+        self.layout.output_dir = self.outdir_var.get()
         self.status_var.set("Output settings applied")
+
+    def _browse_output_dir(self):
+        d = filedialog.askdirectory(title="Select Output Folder",
+                                    initialdir=self.outdir_var.get() or None)
+        if d:
+            self.outdir_var.set(d)
+            self.layout.output_dir = d
+
+    def _refresh_fname_columns(self):
+        """Update the column dropdown in the filename builder."""
+        cols = self.data.headers if self.data.rows else []
+        self._fname_col_combo["values"] = cols
+        if cols:
+            self._fname_col_combo.current(0)
+
+    def _insert_fname_column(self):
+        """Insert the selected column as a {Column} placeholder into the filename template."""
+        col = self._fname_col_combo.get()
+        if not col:
+            return
+        current = self.fname_var.get()
+        placeholder = "{" + col + "}"
+        if current and not current.endswith(("_", "-", " ", "/")):
+            placeholder = "_" + placeholder
+        self.fname_var.set(current + placeholder)
+
+    def _update_fname_preview(self):
+        """Show a live preview of what the filename will look like for the current record."""
+        from .formatter import safe_filename
+        template = self.fname_var.get()
+        record = self.data.current_record if self.data.rows else {}
+        if record:
+            preview = safe_filename(template, record) + ".pdf"
+        else:
+            preview = template + ".pdf"
+        self.fname_preview_var.set(preview)
+
+    def _update_output_rows_label(self):
+        if self.data.rows:
+            self._output_rows_label.config(
+                text=f"{self.data.count} rows loaded from data")
+        else:
+            self._output_rows_label.config(text="No data loaded")
 
     # ==============================================================
     # Preview rendering
@@ -1534,20 +1638,36 @@ class QCertApp:
     # ==============================================================
     # Export / batch generation
     # ==============================================================
+    def _ensure_output_dir(self) -> str:
+        """Return the output directory, prompting the user to pick one if not set."""
+        self._apply_output_settings()
+        out_dir = self.layout.output_dir
+        if not out_dir or not os.path.isdir(out_dir):
+            out_dir = filedialog.askdirectory(
+                title="Select Output Folder",
+                initialdir=out_dir or None)
+            if not out_dir:
+                return ""
+            self.outdir_var.set(out_dir)
+            self.layout.output_dir = out_dir
+        return out_dir
+
     def _export_current(self):
         if not self.data.rows:
             messagebox.showinfo("Export", "No data loaded.")
             return
-        path = filedialog.asksaveasfilename(
-            title="Export Current Certificate",
-            defaultextension=".pdf",
-            filetypes=[("PDF", "*.pdf")],
-        )
-        if not path:
+        from .formatter import safe_filename
+        out_dir = self._ensure_output_dir()
+        if not out_dir:
             return
+        template = self.layout.output_name_template
+        record = self.data.current_record
+        fname = safe_filename(template, record) + ".pdf"
+        path = os.path.join(out_dir, fname)
         warnings: list[str] = []
         try:
-            pdf_bytes = render_single(self.layout, self.data.current_record,
+            os.makedirs(out_dir, exist_ok=True)
+            pdf_bytes = render_single(self.layout, record,
                                        warn=lambda m: warnings.append(m))
             with open(path, "wb") as f:
                 f.write(pdf_bytes)
@@ -1572,7 +1692,7 @@ class QCertApp:
         if not self.data.rows:
             messagebox.showinfo("Export", "No data loaded.")
             return
-        out_dir = filedialog.askdirectory(title="Select Output Folder")
+        out_dir = self._ensure_output_dir()
         if not out_dir:
             return
 

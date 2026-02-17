@@ -69,8 +69,9 @@ class LayoutProfile:
     template_pdf: str = ""           # path to background PDF
     text_fields: list[TextFieldDef] = field(default_factory=list)
     image_layers: list[ImageLayerDef] = field(default_factory=list)
-    output_name_template: str = "{Name}_{ID}.pdf"
+    output_name_template: str = "{Name}"
     output_mode: str = "individual"  # individual | combined
+    output_dir: str = ""             # target folder for exports
     version: int = 1
     created: str = ""
     modified: str = ""
