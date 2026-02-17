@@ -35,10 +35,15 @@ _BUILTIN_FONTS = {
 _registered_fonts: set[str] = set()
 
 
+_BUNDLED_FONTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fonts")
+
+
 def _find_system_ttf(family: str) -> Optional[str]:
-    """Search common system font directories for a TTF matching *family*."""
+    """Search bundled fonts and common system font directories for a TTF matching *family*."""
     import glob
     search_dirs = [
+        # Bundled fonts shipped with QCert (checked first)
+        _BUNDLED_FONTS_DIR,
         "/usr/share/fonts",
         "/usr/local/share/fonts",
         os.path.expanduser("~/.local/share/fonts"),
@@ -57,8 +62,29 @@ def _find_system_ttf(family: str) -> Optional[str]:
         f"{clean}.ttf", f"{clean}.TTF",
         f"{family.lower()}.ttf",
         f"{clean.lower()}.ttf",
+        # Common naming: FamilyName-Regular.ttf
+        f"{clean}-Regular.ttf",
+        f"{clean}-regular.ttf",
     ]
     for d in search_dirs:
+        if not os.path.isdir(d):
+            continue
+        for pat in patterns:
+            matches = glob.glob(os.path.join(d, "**", pat), recursive=True)
+            if matches:
+                return matches[0]
+    return None
+
+
+def _find_bold_ttf(family: str) -> Optional[str]:
+    """Search for a bold variant TTF (e.g. Roboto-Bold.ttf)."""
+    import glob
+    clean = family.replace(" ", "")
+    patterns = [f"{clean}-Bold.ttf", f"{clean}-bold.ttf",
+                f"{family}-Bold.ttf", f"{family.lower()}-bold.ttf"]
+    for d in [_BUNDLED_FONTS_DIR, "/usr/share/fonts", "/usr/local/share/fonts",
+              os.path.expanduser("~/.local/share/fonts"),
+              os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts")]:
         if not os.path.isdir(d):
             continue
         for pat in patterns:
@@ -78,17 +104,35 @@ def _resolve_font(family: str, weight: str) -> str:
         "courier": "Courier",
         "arial": "Helvetica",       # Arial ≈ Helvetica in PDF
     }
+    # Map proprietary fonts to bundled free alternatives when the
+    # original is not installed on the system.
+    _free_alias = {
+        "aptos": "Inter",
+        "calibri": "Carlito",
+    }
+    key = family.lower()
+    if key in _free_alias:
+        # Try the original first; fall back to the free substitute
+        if not _find_system_ttf(family):
+            family = _free_alias[key]
     base = alias.get(family.lower(), family)
 
     if weight == "bold":
         bold_name = base + "-Bold"
-        if bold_name in _BUILTIN_FONTS:
+        if bold_name in _BUILTIN_FONTS or bold_name in _registered_fonts:
             return bold_name
+        # Try to find and register a bold TTF before falling through
+        bold_path = _find_bold_ttf(family)
+        if bold_path:
+            try:
+                pdfmetrics.registerFont(TTFont(bold_name, bold_path))
+                _registered_fonts.add(bold_name)
+                return bold_name
+            except Exception:
+                pass
 
     if base in _BUILTIN_FONTS or base in _registered_fonts:
         return base
-
-    # Try to find and register a system TTF file
     ttf_path = _find_system_ttf(family)
     if ttf_path:
         try:

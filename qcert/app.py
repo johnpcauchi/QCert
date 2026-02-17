@@ -6,6 +6,7 @@ import os
 import sys
 import threading
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk, filedialog, messagebox, colorchooser
 from typing import Optional
 
@@ -90,6 +91,8 @@ class QCertApp:
         self.root.geometry("1360x820")
         self.root.minsize(1100, 700)
 
+        self._apply_modern_style()
+
         # State
         self.data = DataStore()
         self.layout = default_layout()
@@ -112,6 +115,102 @@ class QCertApp:
         self._build_ui()
         self._bind_shortcuts()
         self._refresh_preview()
+
+    # ==============================================================
+    # Modern UI styling
+    # ==============================================================
+    def _apply_modern_style(self):
+        """Apply a modern look to the ttk widgets."""
+        # Use the bundled Open Sans font for the UI if available,
+        # otherwise fall back to platform defaults.
+        _fonts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fonts")
+        _ui_font_path = os.path.join(_fonts_dir, "OpenSans-Regular.ttf")
+
+        # Pick a modern font family that's likely to exist
+        ui_family = "Open Sans"
+        if not os.path.isfile(_ui_font_path):
+            # Fallback chain: Segoe UI (Win), San Francisco (.AppleSystemUIFont on macOS), then default
+            for fallback in ("Segoe UI", "Helvetica Neue", "Arial"):
+                if fallback in tkfont.families():
+                    ui_family = fallback
+                    break
+
+        ui_size = 10
+
+        # Use 'clam' theme — the most modern-looking built-in ttk theme
+        style = ttk.Style(self.root)
+        available = style.theme_names()
+        for theme in ("clam", "alt", "default"):
+            if theme in available:
+                style.theme_use(theme)
+                break
+
+        # Global font
+        default_font = tkfont.nametofont("TkDefaultFont")
+        default_font.configure(family=ui_family, size=ui_size)
+        text_font = tkfont.nametofont("TkTextFont")
+        text_font.configure(family=ui_family, size=ui_size)
+        menu_font = tkfont.nametofont("TkMenuFont")
+        menu_font.configure(family=ui_family, size=ui_size)
+
+        # Colour palette
+        bg = "#f5f6fa"         # light neutral background
+        panel_bg = "#ffffff"   # white panels
+        accent = "#3b82f6"     # modern blue accent
+        fg = "#1e293b"         # dark slate text
+        fg_dim = "#64748b"     # muted secondary text
+
+        self.root.configure(bg=bg)
+
+        # Buttons
+        style.configure("TButton", padding=(10, 5), font=(ui_family, ui_size))
+        style.map("TButton",
+                  background=[("active", accent)],
+                  foreground=[("active", "#ffffff")])
+
+        # Labels
+        style.configure("TLabel", background=bg, foreground=fg,
+                        font=(ui_family, ui_size))
+        style.configure("TLabelframe", background=bg, foreground=fg)
+        style.configure("TLabelframe.Label", background=bg, foreground=fg,
+                        font=(ui_family, ui_size, "bold"))
+
+        # Notebook (tabs)
+        style.configure("TNotebook", background=bg)
+        style.configure("TNotebook.Tab", padding=(12, 6),
+                        font=(ui_family, ui_size))
+        style.map("TNotebook.Tab",
+                  background=[("selected", panel_bg), ("!selected", bg)],
+                  foreground=[("selected", accent), ("!selected", fg_dim)])
+
+        # Frames
+        style.configure("TFrame", background=bg)
+
+        # Combobox / Entry
+        style.configure("TCombobox", padding=4)
+        style.configure("TEntry", padding=4)
+
+        # Scales / sliders
+        style.configure("TScale", background=bg)
+
+        # Separator
+        style.configure("TSeparator", background="#e2e8f0")
+
+        # Scrollbar
+        style.configure("TScrollbar", background=bg, troughcolor="#e2e8f0")
+
+        # Checkbutton
+        style.configure("TCheckbutton", background=bg, foreground=fg,
+                        font=(ui_family, ui_size))
+
+        # PanedWindow
+        style.configure("TPanedwindow", background=bg)
+
+        # Store for use in tk.Frame bg colours (non-ttk)
+        self._ui_bg = bg
+        self._ui_panel_bg = panel_bg
+        self._ui_accent = accent
+        self._ui_fg = fg
 
     # ==============================================================
     # Menu bar
@@ -173,15 +272,15 @@ class QCertApp:
         main.add(left, weight=0)
         left_pane = ttk.PanedWindow(left, orient=tk.VERTICAL)
         left_pane.pack(fill=tk.BOTH, expand=True)
-        data_frame = tk.Frame(left_pane, bg="#c8e6c9")  # pastel green
+        data_frame = tk.Frame(left_pane, bg=self._ui_bg)
         left_pane.add(data_frame, weight=1)
         self._build_data_panel(data_frame)
-        tools_frame = tk.Frame(left_pane, bg="#fff8e1")  # light yellow-cream
+        tools_frame = tk.Frame(left_pane, bg=self._ui_bg)
         left_pane.add(tools_frame, weight=1)
         self._build_tools_panel(tools_frame)
 
         # --- MIDDLE: Controls ---
-        mid = tk.Frame(main, bg="#bbdefb")  # pastel light blue
+        mid = tk.Frame(main, bg=self._ui_bg)
         main.add(mid, weight=0)
         self._build_controls_panel(mid)
 
@@ -333,8 +432,8 @@ class QCertApp:
         props.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
 
         _FONT_FAMILIES = [
-            "Aptos", "Helvetica", "Arial", "Times New Roman",
-            "Calibri", "Roboto",
+            "Aptos", "Calibri", "Helvetica", "Arial",
+            "Open Sans", "Roboto", "Times New Roman",
         ]
 
         self._tf_vars: dict[str, tk.Variable] = {}
