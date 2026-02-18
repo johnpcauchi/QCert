@@ -1,4 +1,4 @@
-"""QCert — main GUI application (tkinter)."""
+"""QCert — main GUI application (customtkinter)."""
 
 import copy
 import io
@@ -10,6 +10,7 @@ import tkinter.font as tkfont
 from tkinter import ttk, filedialog, messagebox, colorchooser
 from typing import Optional
 
+import customtkinter as ctk
 from PIL import Image, ImageTk
 
 try:
@@ -27,6 +28,11 @@ from .layout import (
 from .renderer import render_single, render_batch, _page_size
 from .formatter import sanitize_for_pdf
 
+# ------------------------------------------------------------------
+# CustomTkinter appearance — light mode
+# ------------------------------------------------------------------
+ctk.set_appearance_mode("light")
+ctk.set_default_color_theme("blue")
 
 # ------------------------------------------------------------------
 # Constants
@@ -41,6 +47,21 @@ FINE_NUDGE_MM = 0.1
 MM_PER_PT = 25.4 / 72
 RESIZE_HANDLE_MM = 3.0      # corner handle hit-zone in mm
 MIN_ELEMENT_SIZE_MM = 5.0    # minimum width/height when resizing
+
+# ------------------------------------------------------------------
+# Colour palette (pastel, light mode)
+# ------------------------------------------------------------------
+_CLR_BG = "#f0f4f8"           # overall background
+_CLR_DATA_PANEL = "#e8f5e9"   # soft green
+_CLR_TOOLS_PANEL = "#fff8e1"  # warm cream
+_CLR_CTRL_PANEL = "#e3f2fd"   # soft blue
+_CLR_PREVIEW_BG = "#e8eaed"   # light grey canvas surround
+_CLR_ACCENT = "#5b9bd5"       # button accent blue
+_CLR_ACCENT_HOVER = "#4a8bc2"
+_CLR_TEXT = "#1e293b"          # dark slate text
+_CLR_TEXT_DIM = "#64748b"      # muted text
+_CLR_WHITE = "#ffffff"
+_CLR_BORDER = "#c8d6e5"
 
 
 # ------------------------------------------------------------------
@@ -85,13 +106,12 @@ class UndoStack:
 # ------------------------------------------------------------------
 
 class QCertApp:
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root: ctk.CTk):
         self.root = root
         self.root.title(APP_TITLE)
         self.root.geometry("1360x820")
         self.root.minsize(1100, 700)
-
-        self._apply_modern_style()
+        self.root.configure(fg_color=_CLR_BG)
 
         # State
         self.data = DataStore()
@@ -111,109 +131,22 @@ class QCertApp:
         self._resize_start_size = None # (width, height) at drag start
         self._refreshing = False  # guard against _on_field_select during list rebuilds
 
+        # Configure ttk style for Treeview (still used — no CTk equivalent)
+        style = ttk.Style(self.root)
+        for theme in ("clam", "alt", "default"):
+            if theme in style.theme_names():
+                style.theme_use(theme)
+                break
+        style.configure("Treeview", rowheight=24, font=("", 10))
+        style.configure("Treeview.Heading", font=("", 10, "bold"))
+
         self._build_menu()
         self._build_ui()
         self._bind_shortcuts()
         self._refresh_preview()
 
     # ==============================================================
-    # Modern UI styling
-    # ==============================================================
-    def _apply_modern_style(self):
-        """Apply a modern look to the ttk widgets."""
-        # Use the bundled Open Sans font for the UI if available,
-        # otherwise fall back to platform defaults.
-        _fonts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fonts")
-        _ui_font_path = os.path.join(_fonts_dir, "OpenSans-Regular.ttf")
-
-        # Pick a modern font family that's likely to exist
-        ui_family = "Open Sans"
-        if not os.path.isfile(_ui_font_path):
-            # Fallback chain: Segoe UI (Win), San Francisco (.AppleSystemUIFont on macOS), then default
-            for fallback in ("Segoe UI", "Helvetica Neue", "Arial"):
-                if fallback in tkfont.families():
-                    ui_family = fallback
-                    break
-
-        ui_size = 10
-
-        # Use 'clam' theme — the most modern-looking built-in ttk theme
-        style = ttk.Style(self.root)
-        available = style.theme_names()
-        for theme in ("clam", "alt", "default"):
-            if theme in available:
-                style.theme_use(theme)
-                break
-
-        # Global font
-        default_font = tkfont.nametofont("TkDefaultFont")
-        default_font.configure(family=ui_family, size=ui_size)
-        text_font = tkfont.nametofont("TkTextFont")
-        text_font.configure(family=ui_family, size=ui_size)
-        menu_font = tkfont.nametofont("TkMenuFont")
-        menu_font.configure(family=ui_family, size=ui_size)
-
-        # Colour palette
-        bg = "#f5f6fa"         # light neutral background
-        panel_bg = "#ffffff"   # white panels
-        accent = "#3b82f6"     # modern blue accent
-        fg = "#1e293b"         # dark slate text
-        fg_dim = "#64748b"     # muted secondary text
-
-        self.root.configure(bg=bg)
-
-        # Buttons
-        style.configure("TButton", padding=(10, 5), font=(ui_family, ui_size))
-        style.map("TButton",
-                  background=[("active", accent)],
-                  foreground=[("active", "#ffffff")])
-
-        # Labels
-        style.configure("TLabel", background=bg, foreground=fg,
-                        font=(ui_family, ui_size))
-        style.configure("TLabelframe", background=bg, foreground=fg)
-        style.configure("TLabelframe.Label", background=bg, foreground=fg,
-                        font=(ui_family, ui_size, "bold"))
-
-        # Notebook (tabs)
-        style.configure("TNotebook", background=bg)
-        style.configure("TNotebook.Tab", padding=(12, 6),
-                        font=(ui_family, ui_size))
-        style.map("TNotebook.Tab",
-                  background=[("selected", panel_bg), ("!selected", bg)],
-                  foreground=[("selected", accent), ("!selected", fg_dim)])
-
-        # Frames
-        style.configure("TFrame", background=bg)
-
-        # Combobox / Entry
-        style.configure("TCombobox", padding=4)
-        style.configure("TEntry", padding=4)
-
-        # Scales / sliders
-        style.configure("TScale", background=bg)
-
-        # Separator
-        style.configure("TSeparator", background="#e2e8f0")
-
-        # Scrollbar
-        style.configure("TScrollbar", background=bg, troughcolor="#e2e8f0")
-
-        # Checkbutton
-        style.configure("TCheckbutton", background=bg, foreground=fg,
-                        font=(ui_family, ui_size))
-
-        # PanedWindow
-        style.configure("TPanedwindow", background=bg)
-
-        # Store for use in tk.Frame bg colours (non-ttk)
-        self._ui_bg = bg
-        self._ui_panel_bg = panel_bg
-        self._ui_accent = accent
-        self._ui_fg = fg
-
-    # ==============================================================
-    # Menu bar
+    # Menu bar (tk.Menu — no CTk replacement)
     # ==============================================================
     def _build_menu(self):
         menubar = tk.Menu(self.root)
@@ -261,175 +194,199 @@ class QCertApp:
         self.root.config(menu=menubar)
 
     # ==============================================================
-    # UI layout — three main panels
+    # UI layout — three-column panel layout
     # ==============================================================
     def _build_ui(self):
-        main = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
-        main.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        # Main container
+        main = ctk.CTkFrame(self.root, fg_color=_CLR_BG)
+        main.pack(fill="both", expand=True, padx=4, pady=4)
 
         # --- LEFT: Data + Tools panel ---
-        left = ttk.Frame(main, width=310)
-        main.add(left, weight=0)
-        left_pane = ttk.PanedWindow(left, orient=tk.VERTICAL)
-        left_pane.pack(fill=tk.BOTH, expand=True)
-        data_frame = tk.Frame(left_pane, bg=self._ui_bg)
-        left_pane.add(data_frame, weight=1)
+        left = ctk.CTkFrame(main, width=310, fg_color=_CLR_BG)
+        left.pack(side="left", fill="y", padx=(0, 4))
+        left.pack_propagate(False)
+
+        data_frame = ctk.CTkFrame(left, fg_color=_CLR_DATA_PANEL, corner_radius=10)
+        data_frame.pack(fill="both", expand=True, pady=(0, 4))
         self._build_data_panel(data_frame)
-        tools_frame = tk.Frame(left_pane, bg=self._ui_bg)
-        left_pane.add(tools_frame, weight=1)
+
+        tools_frame = ctk.CTkFrame(left, fg_color=_CLR_TOOLS_PANEL, corner_radius=10)
+        tools_frame.pack(fill="x", pady=(0, 0))
         self._build_tools_panel(tools_frame)
 
         # --- MIDDLE: Controls ---
-        mid = tk.Frame(main, bg=self._ui_bg)
-        main.add(mid, weight=0)
+        mid = ctk.CTkFrame(main, width=340, fg_color=_CLR_CTRL_PANEL, corner_radius=10)
+        mid.pack(side="left", fill="y", padx=(0, 4))
+        mid.pack_propagate(False)
         self._build_controls_panel(mid)
 
         # --- RIGHT: Preview ---
-        right = ttk.Frame(main)
-        main.add(right, weight=1)
+        right = ctk.CTkFrame(main, fg_color=_CLR_PREVIEW_BG, corner_radius=10)
+        right.pack(side="left", fill="both", expand=True)
         self._build_preview_panel(right)
 
         # Status bar
         self.status_var = tk.StringVar(value="Ready")
-        status = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status.pack(side=tk.BOTTOM, fill=tk.X)
+        status = ctk.CTkLabel(self.root, textvariable=self.status_var,
+                              anchor="w", height=28,
+                              fg_color="#e2e8f0", text_color=_CLR_TEXT_DIM,
+                              corner_radius=0)
+        status.pack(side="bottom", fill="x")
 
     # ------------------------------------------------------------------
     # LEFT panel: data import + record nav + data table
     # ------------------------------------------------------------------
     def _build_data_panel(self, parent):
-        bg = parent.cget("bg")
-        tk.Label(parent, text="Data", font=("", 13, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(4, 0))
+        ctk.CTkLabel(parent, text="Data", font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
-        btn_frame = tk.Frame(parent, bg=bg)
-        btn_frame.pack(fill=tk.X, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Open Spreadsheet…", command=self._open_spreadsheet).pack(side=tk.LEFT)
+        btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=8, pady=4)
+        ctk.CTkButton(btn_frame, text="Open Spreadsheet…",
+                       command=self._open_spreadsheet,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=30).pack(side="left")
 
-        self.file_label = tk.Label(parent, text="No file loaded", fg="gray", bg=bg)
-        self.file_label.pack(anchor=tk.W, padx=4)
+        self.file_label = ctk.CTkLabel(parent, text="No file loaded",
+                                        text_color=_CLR_TEXT_DIM)
+        self.file_label.pack(anchor="w", padx=8)
 
         # Navigation
-        nav = tk.Frame(parent, bg=bg)
-        nav.pack(fill=tk.X, padx=4, pady=4)
-        ttk.Button(nav, text="<< Prev", width=8, command=self._prev_record).pack(side=tk.LEFT)
+        nav = ctk.CTkFrame(parent, fg_color="transparent")
+        nav.pack(fill="x", padx=8, pady=4)
+        ctk.CTkButton(nav, text="<< Prev", width=70,
+                       command=self._prev_record,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=28).pack(side="left")
         self.rec_var = tk.StringVar(value="0 / 0")
-        tk.Label(nav, textvariable=self.rec_var, width=12, anchor=tk.CENTER, bg=bg).pack(side=tk.LEFT, padx=4)
-        ttk.Button(nav, text="Next >>", width=8, command=self._next_record).pack(side=tk.LEFT)
+        ctk.CTkLabel(nav, textvariable=self.rec_var, width=80,
+                     text_color=_CLR_TEXT).pack(side="left", padx=4)
+        ctk.CTkButton(nav, text="Next >>", width=70,
+                       command=self._next_record,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=28).pack(side="left")
 
-        # Go-to / search
-        sf = tk.Frame(parent, bg=bg)
-        sf.pack(fill=tk.X, padx=4, pady=2)
-        tk.Label(sf, text="Go to row:", bg=bg).pack(side=tk.LEFT)
+        # Go-to
+        sf = ctk.CTkFrame(parent, fg_color="transparent")
+        sf.pack(fill="x", padx=8, pady=2)
+        ctk.CTkLabel(sf, text="Go to row:", text_color=_CLR_TEXT).pack(side="left")
         self.goto_var = tk.StringVar()
-        ttk.Entry(sf, textvariable=self.goto_var, width=6).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sf, text="Go", command=self._goto_record).pack(side=tk.LEFT)
+        ctk.CTkEntry(sf, textvariable=self.goto_var, width=60, height=28).pack(side="left", padx=4)
+        ctk.CTkButton(sf, text="Go", width=40, command=self._goto_record,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=28).pack(side="left")
 
-        sf2 = tk.Frame(parent, bg=bg)
-        sf2.pack(fill=tk.X, padx=4, pady=2)
-        tk.Label(sf2, text="Search:", bg=bg).pack(side=tk.LEFT)
+        # Search
+        sf2 = ctk.CTkFrame(parent, fg_color="transparent")
+        sf2.pack(fill="x", padx=8, pady=2)
+        ctk.CTkLabel(sf2, text="Search:", text_color=_CLR_TEXT).pack(side="left")
         self.search_var = tk.StringVar()
-        ttk.Entry(sf2, textvariable=self.search_var, width=14).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sf2, text="Find", command=self._search_records).pack(side=tk.LEFT)
+        ctk.CTkEntry(sf2, textvariable=self.search_var, width=120, height=28).pack(side="left", padx=4)
+        ctk.CTkButton(sf2, text="Find", width=45, command=self._search_records,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=28).pack(side="left")
 
-        # Data table
-        tk.Label(parent, text="Current Record", font=("", 10, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(6, 0))
-        tree_frame = tk.Frame(parent, bg=bg)
-        tree_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=2)
-        self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"), show="headings", height=4)
+        # Data table (Treeview — no CTk equivalent)
+        ctk.CTkLabel(parent, text="Current Record",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(6, 0))
+        tree_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        tree_frame.pack(fill="both", expand=True, padx=8, pady=(2, 8))
+        self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"),
+                                       show="headings", height=4)
         self.data_tree.heading("Column", text="Column")
         self.data_tree.heading("Value", text="Value")
         self.data_tree.column("Column", width=100)
         self.data_tree.column("Value", width=160)
-        sb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.data_tree.yview)
+        sb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.data_tree.yview)
         self.data_tree.configure(yscrollcommand=sb.set)
-        self.data_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.data_tree.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
 
     def _build_tools_panel(self, parent):
-        bg = parent.cget("bg")
-        tk.Label(parent, text="Tools", font=("", 13, "bold"), bg=bg).pack(anchor=tk.W, padx=4, pady=(4, 0))
+        ctk.CTkLabel(parent, text="Tools", font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         # Center Grid toggle
         self._center_grid_var = tk.BooleanVar(value=False)
-        grid_btn = tk.Checkbutton(parent, text="Center Grid", variable=self._center_grid_var,
-                                   bg=bg, activebackground=bg, anchor=tk.W,
-                                   command=self._toggle_center_grid)
-        grid_btn.pack(fill=tk.X, padx=8, pady=2)
+        ctk.CTkCheckBox(parent, text="Center Grid",
+                         variable=self._center_grid_var,
+                         onvalue=True, offvalue=False,
+                         command=self._toggle_center_grid,
+                         text_color=_CLR_TEXT,
+                         fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER
+                         ).pack(fill="x", padx=12, pady=4)
 
-        # Center Text Field button
-        ttk.Button(parent, text="Center Selected Field", command=self._center_selected_field).pack(
-            fill=tk.X, padx=8, pady=2)
+        ctk.CTkButton(parent, text="Center Selected Field",
+                       command=self._center_selected_field,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=30).pack(fill="x", padx=12, pady=2)
 
-        # Insert Date button
-        ttk.Button(parent, text="Insert Date", command=self._insert_date_field).pack(
-            fill=tk.X, padx=8, pady=(2, 8))
+        ctk.CTkButton(parent, text="Insert Date",
+                       command=self._insert_date_field,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=30).pack(fill="x", padx=12, pady=(2, 10))
 
     # ------------------------------------------------------------------
     # MIDDLE panel: field / image controls
     # ------------------------------------------------------------------
     def _build_controls_panel(self, parent):
-        bg = parent.cget("bg") if isinstance(parent, tk.Frame) else None
-        if bg:
-            tk.Label(parent, text="Fields & Layers", font=("", 13, "bold"),
-                     bg=bg).pack(anchor=tk.W, padx=4, pady=(4, 0))
-        nb = ttk.Notebook(parent)
-        nb.pack(fill=tk.BOTH, expand=True, padx=2)
+        ctk.CTkLabel(parent, text="Fields & Layers",
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
+
+        nb = ctk.CTkTabview(parent, fg_color=_CLR_WHITE,
+                             segmented_button_fg_color="#d4e4f7",
+                             segmented_button_selected_color=_CLR_ACCENT,
+                             segmented_button_selected_hover_color=_CLR_ACCENT_HOVER,
+                             segmented_button_unselected_color="#d4e4f7",
+                             segmented_button_unselected_hover_color="#bdd4ec")
+        nb.pack(fill="both", expand=True, padx=4, pady=4)
 
         # --- Text Fields tab ---
-        tf_tab = ttk.Frame(nb)
-        nb.add(tf_tab, text="Text Fields")
+        tf_tab = nb.add("Text Fields")
         self._build_text_field_controls(tf_tab)
 
         # --- Images tab ---
-        img_tab = ttk.Frame(nb)
-        nb.add(img_tab, text="Images")
+        img_tab = nb.add("Images")
         self._build_image_controls(img_tab)
 
         # --- Output tab ---
-        out_tab = ttk.Frame(nb)
-        nb.add(out_tab, text="Output")
+        out_tab = nb.add("Output")
         self._build_output_controls(out_tab)
 
     def _build_text_field_controls(self, parent):
-        # Scrollable container for the entire text field controls
-        canvas_frame = ttk.Frame(parent)
-        canvas_frame.pack(fill=tk.BOTH, expand=True)
-        scroll_canvas = tk.Canvas(canvas_frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=scroll_canvas.yview)
-        scroll_inner = ttk.Frame(scroll_canvas)
+        # Scrollable container
+        scroll_frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        scroll_frame.pack(fill="both", expand=True)
 
-        scroll_inner.bind("<Configure>", lambda e: scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all")))
-        scroll_canvas.create_window((0, 0), window=scroll_inner, anchor="nw")
-        scroll_canvas.configure(yscrollcommand=scrollbar.set)
+        top = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        top.pack(fill="x", padx=4, pady=4)
+        ctk.CTkButton(top, text="+ Add Text Field", command=self._add_text_field,
+                       fg_color="#66bb6a", hover_color="#4caf50",
+                       height=28, width=120).pack(side="left")
+        ctk.CTkButton(top, text="- Remove", command=self._remove_text_field,
+                       fg_color="#ef5350", hover_color="#e53935",
+                       height=28, width=80).pack(side="left", padx=4)
 
-        scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Mousewheel scrolling
-        def _on_mousewheel(event):
-            scroll_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        def _on_mousewheel_linux(event):
-            if event.num == 4:
-                scroll_canvas.yview_scroll(-1, "units")
-            elif event.num == 5:
-                scroll_canvas.yview_scroll(1, "units")
-        scroll_canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        scroll_canvas.bind_all("<Button-4>", _on_mousewheel_linux)
-        scroll_canvas.bind_all("<Button-5>", _on_mousewheel_linux)
-
-        top = ttk.Frame(scroll_inner)
-        top.pack(fill=tk.X, padx=4, pady=4)
-        ttk.Button(top, text="+ Add Text Field", command=self._add_text_field).pack(side=tk.LEFT)
-        ttk.Button(top, text="- Remove", command=self._remove_text_field).pack(side=tk.LEFT, padx=4)
-
-        # Listbox of fields
-        self.fields_listbox = tk.Listbox(scroll_inner, height=6, exportselection=False)
-        self.fields_listbox.pack(fill=tk.X, padx=4, pady=2)
+        # Listbox of fields (tk.Listbox — styled)
+        self.fields_listbox = tk.Listbox(scroll_frame, height=6, exportselection=False,
+                                          bg=_CLR_WHITE, fg=_CLR_TEXT,
+                                          selectbackground=_CLR_ACCENT,
+                                          selectforeground="white",
+                                          font=("", 10), borderwidth=1,
+                                          relief="solid", highlightthickness=0)
+        self.fields_listbox.pack(fill="x", padx=4, pady=2)
         self.fields_listbox.bind("<<ListboxSelect>>", self._on_field_select)
 
         # --- Single Column source ---
-        props = ttk.LabelFrame(scroll_inner, text="Field Properties")
-        props.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        props_label = ctk.CTkLabel(scroll_frame, text="Field Properties",
+                                    font=ctk.CTkFont(size=11, weight="bold"),
+                                    text_color=_CLR_TEXT)
+        props_label.pack(anchor="w", padx=6, pady=(6, 2))
+        props = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
+                              border_width=1, border_color=_CLR_BORDER)
+        props.pack(fill="both", expand=True, padx=4, pady=2)
 
         _FONT_FAMILIES = [
             "Aptos", "Calibri", "Helvetica", "Arial",
@@ -454,99 +411,154 @@ class QCertApp:
             ("Format Rule", "format_rule", "", "format_rule"),
             ("Show Bbox", "show_bbox", False, "check"),
         ]:
-            ttk.Label(props, text=label).grid(row=row, column=0, sticky=tk.W, padx=2, pady=1)
+            ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
+                         font=ctk.CTkFont(size=11)).grid(
+                row=row, column=0, sticky="w", padx=6, pady=2)
             if widget_type == "entry":
                 var = tk.StringVar(value=str(default))
-                ttk.Entry(props, textvariable=var, width=14).grid(row=row, column=1, sticky=tk.EW, padx=2)
+                ctk.CTkEntry(props, textvariable=var, width=120,
+                             height=26).grid(row=row, column=1, sticky="ew", padx=4, pady=2)
             elif widget_type == "combo":
                 var = tk.StringVar(value=default)
-                cb = ttk.Combobox(props, textvariable=var, width=12)
-                cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
-                cb.bind("<<ComboboxSelected>>", self._on_source_column_change)
+                cb = ctk.CTkComboBox(props, variable=var, values=[""],
+                                      width=120, height=26,
+                                      command=self._on_source_column_change)
+                cb.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
                 self._col_combo = cb
             elif widget_type == "font":
                 var = tk.StringVar(value=default)
-                cb = ttk.Combobox(props, textvariable=var, values=_FONT_FAMILIES, width=14)
-                cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
+                ctk.CTkComboBox(props, variable=var, values=_FONT_FAMILIES,
+                                width=120, height=26).grid(
+                    row=row, column=1, sticky="ew", padx=4, pady=2)
             elif widget_type == "fontsize":
                 var = tk.StringVar(value=str(default))
-                fs_frame = ttk.Frame(props)
-                fs_frame.grid(row=row, column=1, sticky=tk.EW, padx=2)
-                self._fs_label = ttk.Label(fs_frame, text=f"{default} pt", width=6)
+                fs_frame = ctk.CTkFrame(props, fg_color="transparent")
+                fs_frame.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
+                self._fs_label = ctk.CTkLabel(fs_frame, text=f"{default} pt",
+                                               width=45, text_color=_CLR_TEXT)
                 self._fs_var_ref = var
-                self._fs_scale = ttk.Scale(
-                    fs_frame, from_=6, to=72, orient=tk.HORIZONTAL,
-                    command=lambda v, sv=None: self._on_fontsize_slide(v),
+                self._fs_scale = ctk.CTkSlider(
+                    fs_frame, from_=6, to=72, width=100,
+                    command=self._on_fontsize_slide,
+                    button_color=_CLR_ACCENT,
+                    button_hover_color=_CLR_ACCENT_HOVER,
+                    progress_color=_CLR_ACCENT,
                 )
                 self._fs_scale.set(float(default))
-                self._fs_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
-                self._fs_label.pack(side=tk.LEFT, padx=2)
+                self._fs_scale.pack(side="left", fill="x", expand=True)
+                self._fs_label.pack(side="left", padx=2)
             elif widget_type == "align":
                 var = tk.StringVar(value=default)
-                ttk.Combobox(props, textvariable=var, values=["left", "center", "right"], width=12).grid(row=row, column=1, sticky=tk.EW, padx=2)
+                ctk.CTkComboBox(props, variable=var,
+                                values=["left", "center", "right"],
+                                width=120, height=26).grid(
+                    row=row, column=1, sticky="ew", padx=4, pady=2)
             elif widget_type == "weight":
                 var = tk.StringVar(value=default)
-                ttk.Combobox(props, textvariable=var, values=["normal", "bold"], width=12).grid(row=row, column=1, sticky=tk.EW, padx=2)
+                ctk.CTkComboBox(props, variable=var,
+                                values=["normal", "bold"],
+                                width=120, height=26).grid(
+                    row=row, column=1, sticky="ew", padx=4, pady=2)
             elif widget_type == "colour":
                 var = tk.StringVar(value=default)
-                f = ttk.Frame(props)
-                f.grid(row=row, column=1, sticky=tk.EW, padx=2)
-                ttk.Entry(f, textvariable=var, width=9).pack(side=tk.LEFT)
-                ttk.Button(f, text="…", width=2, command=lambda v=var: self._pick_colour(v)).pack(side=tk.LEFT)
+                f = ctk.CTkFrame(props, fg_color="transparent")
+                f.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
+                ctk.CTkEntry(f, textvariable=var, width=80, height=26).pack(side="left")
+                ctk.CTkButton(f, text="…", width=28, height=26,
+                              fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                              command=lambda v=var: self._pick_colour(v)).pack(side="left", padx=2)
             elif widget_type == "format_rule":
                 var = tk.StringVar(value=default)
-                fr_cb = ttk.Combobox(props, textvariable=var, width=14,
-                                     values=["", "uppercase", "lowercase", "titlecase",
-                                             "sentencecase", "DD MMM YYYY", "DD/MM/YYYY",
-                                             "YYYY-MM-DD", "today"])
-                fr_cb.grid(row=row, column=1, sticky=tk.EW, padx=2)
+                ctk.CTkComboBox(props, variable=var, width=120, height=26,
+                                values=["", "uppercase", "lowercase", "titlecase",
+                                        "sentencecase", "DD MMM YYYY", "DD/MM/YYYY",
+                                        "YYYY-MM-DD", "today"]).grid(
+                    row=row, column=1, sticky="ew", padx=4, pady=2)
             elif widget_type == "check":
                 var = tk.BooleanVar(value=default)
-                ttk.Checkbutton(props, variable=var).grid(row=row, column=1, sticky=tk.W, padx=2)
+                ctk.CTkCheckBox(props, text="", variable=var,
+                                onvalue=True, offvalue=False,
+                                width=24,
+                                fg_color=_CLR_ACCENT,
+                                hover_color=_CLR_ACCENT_HOVER).grid(
+                    row=row, column=1, sticky="w", padx=4, pady=2)
             self._tf_vars[key] = var
             row += 1
 
         props.columnconfigure(1, weight=1)
-        ttk.Button(props, text="Apply", command=self._apply_text_field).grid(row=row, column=0, columnspan=2, pady=4)
+        ctk.CTkButton(props, text="Apply", command=self._apply_text_field,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=30).grid(row=row, column=0, columnspan=2, pady=6)
 
         # --- Custom Fields (combine multiple columns) ---
-        custom = ttk.LabelFrame(scroll_inner, text="Custom Fields (combine columns)")
-        custom.pack(fill=tk.X, padx=4, pady=4)
+        custom_label = ctk.CTkLabel(scroll_frame, text="Custom Fields (combine columns)",
+                                     font=ctk.CTkFont(size=11, weight="bold"),
+                                     text_color=_CLR_TEXT)
+        custom_label.pack(anchor="w", padx=6, pady=(8, 2))
+        custom = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
+                               border_width=1, border_color=_CLR_BORDER)
+        custom.pack(fill="x", padx=4, pady=2)
 
-        ttk.Label(custom, text="Select columns to combine:", foreground="gray").pack(anchor=tk.W, padx=4, pady=(4, 0))
+        ctk.CTkLabel(custom, text="Select columns to combine:",
+                     text_color=_CLR_TEXT_DIM,
+                     font=ctk.CTkFont(size=10)).pack(anchor="w", padx=6, pady=(4, 0))
 
-        list_frame = ttk.Frame(custom)
-        list_frame.pack(fill=tk.X, padx=4, pady=2)
+        list_frame = ctk.CTkFrame(custom, fg_color="transparent")
+        list_frame.pack(fill="x", padx=6, pady=2)
         self._combined_listbox = tk.Listbox(list_frame, height=5, selectmode=tk.MULTIPLE,
-                                             exportselection=False)
-        self._combined_listbox.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        csb = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self._combined_listbox.yview)
+                                             exportselection=False,
+                                             bg=_CLR_WHITE, fg=_CLR_TEXT,
+                                             selectbackground=_CLR_ACCENT,
+                                             selectforeground="white",
+                                             font=("", 10), borderwidth=1,
+                                             relief="solid", highlightthickness=0)
+        self._combined_listbox.pack(side="left", fill="x", expand=True)
+        csb = ttk.Scrollbar(list_frame, orient="vertical", command=self._combined_listbox.yview)
         self._combined_listbox.configure(yscrollcommand=csb.set)
-        csb.pack(side=tk.RIGHT, fill=tk.Y)
+        csb.pack(side="right", fill="y")
 
-        sep_frame = ttk.Frame(custom)
-        sep_frame.pack(fill=tk.X, padx=4, pady=2)
-        ttk.Label(sep_frame, text="Separator:").pack(side=tk.LEFT)
+        sep_frame = ctk.CTkFrame(custom, fg_color="transparent")
+        sep_frame.pack(fill="x", padx=6, pady=2)
+        ctk.CTkLabel(sep_frame, text="Separator:", text_color=_CLR_TEXT).pack(side="left")
         self._separator_var = tk.StringVar(value=" ")
-        sep_combo = ttk.Combobox(sep_frame, textvariable=self._separator_var, width=10,
-                                  values=["(space)", "(none)", " & ", " and ", ", ", " - "])
-        sep_combo.pack(side=tk.LEFT, padx=4)
-        ttk.Label(sep_frame, text="or type custom", foreground="gray").pack(side=tk.LEFT)
+        ctk.CTkComboBox(sep_frame, variable=self._separator_var, width=100, height=26,
+                         values=["(space)", "(none)", " & ", " and ", ", ", " - "]
+                         ).pack(side="left", padx=4)
+        ctk.CTkLabel(sep_frame, text="or type custom",
+                     text_color=_CLR_TEXT_DIM,
+                     font=ctk.CTkFont(size=10)).pack(side="left")
 
-        ttk.Button(custom, text="Apply Custom Fields", command=self._apply_custom_fields).pack(pady=4)
+        ctk.CTkButton(custom, text="Apply Custom Fields",
+                       command=self._apply_custom_fields,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=28).pack(pady=6)
 
     def _build_image_controls(self, parent):
-        top = ttk.Frame(parent)
-        top.pack(fill=tk.X, padx=4, pady=4)
-        ttk.Button(top, text="+ Add Image", command=self._add_image_layer).pack(side=tk.LEFT)
-        ttk.Button(top, text="- Remove", command=self._remove_image_layer).pack(side=tk.LEFT, padx=4)
+        top = ctk.CTkFrame(parent, fg_color="transparent")
+        top.pack(fill="x", padx=4, pady=4)
+        ctk.CTkButton(top, text="+ Add Image", command=self._add_image_layer,
+                       fg_color="#66bb6a", hover_color="#4caf50",
+                       height=28, width=100).pack(side="left")
+        ctk.CTkButton(top, text="- Remove", command=self._remove_image_layer,
+                       fg_color="#ef5350", hover_color="#e53935",
+                       height=28, width=80).pack(side="left", padx=4)
 
-        self.images_listbox = tk.Listbox(parent, height=5, exportselection=False)
-        self.images_listbox.pack(fill=tk.X, padx=4, pady=2)
+        self.images_listbox = tk.Listbox(parent, height=5, exportselection=False,
+                                          bg=_CLR_WHITE, fg=_CLR_TEXT,
+                                          selectbackground=_CLR_ACCENT,
+                                          selectforeground="white",
+                                          font=("", 10), borderwidth=1,
+                                          relief="solid", highlightthickness=0)
+        self.images_listbox.pack(fill="x", padx=4, pady=2)
         self.images_listbox.bind("<<ListboxSelect>>", self._on_image_select)
 
-        props = ttk.LabelFrame(parent, text="Image Properties")
-        props.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        props_label = ctk.CTkLabel(parent, text="Image Properties",
+                                    font=ctk.CTkFont(size=11, weight="bold"),
+                                    text_color=_CLR_TEXT)
+        props_label.pack(anchor="w", padx=6, pady=(6, 2))
+        props = ctk.CTkFrame(parent, fg_color=_CLR_WHITE, corner_radius=8,
+                              border_width=1, border_color=_CLR_BORDER)
+        props.pack(fill="both", expand=True, padx=4, pady=2)
 
         self._img_vars: dict[str, tk.Variable] = {}
         row = 0
@@ -561,132 +573,182 @@ class QCertApp:
             ("Rotation (deg)", "rotation", "0", "entry"),
             ("Opacity", "opacity", "1.0", "entry"),
         ]:
-            ttk.Label(props, text=label).grid(row=row, column=0, sticky=tk.W, padx=2, pady=1)
+            ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
+                         font=ctk.CTkFont(size=11)).grid(
+                row=row, column=0, sticky="w", padx=6, pady=2)
             if wtype == "entry":
                 var = tk.StringVar(value=str(default))
-                ttk.Entry(props, textvariable=var, width=14).grid(row=row, column=1, sticky=tk.EW, padx=2)
+                ctk.CTkEntry(props, textvariable=var, width=120,
+                             height=26).grid(row=row, column=1, sticky="ew", padx=4, pady=2)
             elif wtype == "file":
                 var = tk.StringVar(value=default)
-                f = ttk.Frame(props)
-                f.grid(row=row, column=1, sticky=tk.EW, padx=2)
-                ttk.Entry(f, textvariable=var, width=10).pack(side=tk.LEFT, fill=tk.X, expand=True)
-                ttk.Button(f, text="…", width=2, command=lambda v=var: self._pick_image_file(v)).pack(side=tk.LEFT)
+                f = ctk.CTkFrame(props, fg_color="transparent")
+                f.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
+                ctk.CTkEntry(f, textvariable=var, width=90, height=26).pack(
+                    side="left", fill="x", expand=True)
+                ctk.CTkButton(f, text="…", width=28, height=26,
+                              fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                              command=lambda v=var: self._pick_image_file(v)).pack(side="left", padx=2)
             elif wtype == "check":
                 var = tk.BooleanVar(value=default)
-                ttk.Checkbutton(props, variable=var).grid(row=row, column=1, sticky=tk.W, padx=2)
+                ctk.CTkCheckBox(props, text="", variable=var,
+                                onvalue=True, offvalue=False, width=24,
+                                fg_color=_CLR_ACCENT,
+                                hover_color=_CLR_ACCENT_HOVER).grid(
+                    row=row, column=1, sticky="w", padx=4, pady=2)
             self._img_vars[key] = var
             row += 1
 
         props.columnconfigure(1, weight=1)
-        ttk.Button(props, text="Apply", command=self._apply_image_layer).grid(row=row, column=0, columnspan=2, pady=4)
+        ctk.CTkButton(props, text="Apply", command=self._apply_image_layer,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=30).grid(row=row, column=0, columnspan=2, pady=6)
 
     def _build_output_controls(self, parent):
-        f = ttk.Frame(parent)
-        f.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+        f = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        f.pack(fill="both", expand=True, padx=4, pady=4)
 
         # --- Output directory ---
-        ttk.Label(f, text="Output folder:", font=("", 9, "bold")).pack(anchor=tk.W)
-        dir_frame = ttk.Frame(f)
-        dir_frame.pack(fill=tk.X, pady=2)
+        ctk.CTkLabel(f, text="Output folder:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w")
+        dir_frame = ctk.CTkFrame(f, fg_color="transparent")
+        dir_frame.pack(fill="x", pady=2)
         self.outdir_var = tk.StringVar(value=self.layout.output_dir)
-        dir_entry = ttk.Entry(dir_frame, textvariable=self.outdir_var)
-        dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(dir_frame, text="Browse…", width=8,
-                   command=self._browse_output_dir).pack(side=tk.LEFT, padx=(4, 0))
+        ctk.CTkEntry(dir_frame, textvariable=self.outdir_var, height=28).pack(
+            side="left", fill="x", expand=True)
+        ctk.CTkButton(dir_frame, text="Browse…", width=70, height=28,
+                       command=self._browse_output_dir,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(
+            side="left", padx=(4, 0))
 
-        sep1 = ttk.Separator(f, orient=tk.HORIZONTAL)
-        sep1.pack(fill=tk.X, pady=6)
+        # Separator line
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- Filename template ---
-        ttk.Label(f, text="Filename template:", font=("", 9, "bold")).pack(anchor=tk.W)
+        ctk.CTkLabel(f, text="Filename template:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w")
         self.fname_var = tk.StringVar(value=self.layout.output_name_template)
         self.fname_var.trace_add("write", lambda *_: self._update_fname_preview())
-        ttk.Entry(f, textvariable=self.fname_var).pack(fill=tk.X, pady=2)
+        ctk.CTkEntry(f, textvariable=self.fname_var, height=28).pack(fill="x", pady=2)
 
-        # Column picker — insert {Column} into the template
-        pick_frame = ttk.Frame(f)
-        pick_frame.pack(fill=tk.X, pady=2)
-        ttk.Label(pick_frame, text="Insert column:").pack(side=tk.LEFT)
-        self._fname_col_combo = ttk.Combobox(pick_frame, state="readonly", width=18)
-        self._fname_col_combo.pack(side=tk.LEFT, padx=4)
-        ttk.Button(pick_frame, text="Add", width=5,
-                   command=self._insert_fname_column).pack(side=tk.LEFT)
-        ttk.Label(f, text="Tip: combine columns like {First}_{Last}",
-                  foreground="gray", font=("", 8)).pack(anchor=tk.W)
+        # Column picker
+        pick_frame = ctk.CTkFrame(f, fg_color="transparent")
+        pick_frame.pack(fill="x", pady=2)
+        ctk.CTkLabel(pick_frame, text="Insert column:", text_color=_CLR_TEXT).pack(side="left")
+        self._fname_col_combo = ctk.CTkComboBox(pick_frame, values=["Index"],
+                                                  width=140, height=26, state="readonly")
+        self._fname_col_combo.pack(side="left", padx=4)
+        ctk.CTkButton(pick_frame, text="Add", width=45, height=26,
+                       command=self._insert_fname_column,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left")
+        ctk.CTkLabel(f, text="Tip: combine columns like {First}_{Last}",
+                     text_color=_CLR_TEXT_DIM,
+                     font=ctk.CTkFont(size=10)).pack(anchor="w")
 
-        # Live preview of resolved filename
+        # Live preview
         self.fname_preview_var = tk.StringVar(value="")
-        ttk.Label(f, text="Preview:").pack(anchor=tk.W, pady=(4, 0))
-        ttk.Label(f, textvariable=self.fname_preview_var,
-                  foreground="#555", wraplength=300).pack(anchor=tk.W)
+        ctk.CTkLabel(f, text="Preview:", text_color=_CLR_TEXT).pack(anchor="w", pady=(4, 0))
+        ctk.CTkLabel(f, textvariable=self.fname_preview_var,
+                     text_color=_CLR_TEXT_DIM, wraplength=280).pack(anchor="w")
 
-        sep2 = ttk.Separator(f, orient=tk.HORIZONTAL)
-        sep2.pack(fill=tk.X, pady=6)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- Output mode ---
-        ttk.Label(f, text="Output mode:", font=("", 9, "bold")).pack(anchor=tk.W)
+        ctk.CTkLabel(f, text="Output mode:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w")
         self.outmode_var = tk.StringVar(value=self.layout.output_mode)
-        ttk.Radiobutton(f, text="One PDF per record",
-                        variable=self.outmode_var, value="individual").pack(anchor=tk.W)
-        ttk.Radiobutton(f, text="Combined multi-page PDF",
-                        variable=self.outmode_var, value="combined").pack(anchor=tk.W)
+        ctk.CTkRadioButton(f, text="One PDF per record",
+                            variable=self.outmode_var, value="individual",
+                            text_color=_CLR_TEXT,
+                            fg_color=_CLR_ACCENT,
+                            hover_color=_CLR_ACCENT_HOVER).pack(anchor="w", pady=2)
+        ctk.CTkRadioButton(f, text="Combined multi-page PDF",
+                            variable=self.outmode_var, value="combined",
+                            text_color=_CLR_TEXT,
+                            fg_color=_CLR_ACCENT,
+                            hover_color=_CLR_ACCENT_HOVER).pack(anchor="w", pady=2)
 
-        sep3 = ttk.Separator(f, orient=tk.HORIZONTAL)
-        sep3.pack(fill=tk.X, pady=6)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- DPI slider ---
-        ttk.Label(f, text="Output DPI:", font=("", 9, "bold")).pack(anchor=tk.W)
-        dpi_frame = ttk.Frame(f)
-        dpi_frame.pack(fill=tk.X, pady=2)
+        ctk.CTkLabel(f, text="Output DPI:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=_CLR_TEXT).pack(anchor="w")
+        dpi_frame = ctk.CTkFrame(f, fg_color="transparent")
+        dpi_frame.pack(fill="x", pady=2)
         self.dpi_var = tk.IntVar(value=self.layout.output_dpi)
-        self.dpi_scale = ttk.Scale(dpi_frame, from_=72, to=600,
-                                   variable=self.dpi_var, orient=tk.HORIZONTAL,
-                                   command=self._on_dpi_change)
-        self.dpi_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.dpi_label = ttk.Label(dpi_frame, text=f"{self.layout.output_dpi} DPI", width=8)
-        self.dpi_label.pack(side=tk.LEFT, padx=4)
-        self.dpi_est_label = ttk.Label(f, text="", foreground="gray")
-        self.dpi_est_label.pack(anchor=tk.W)
+        self.dpi_scale = ctk.CTkSlider(dpi_frame, from_=72, to=600,
+                                        command=self._on_dpi_change,
+                                        button_color=_CLR_ACCENT,
+                                        button_hover_color=_CLR_ACCENT_HOVER,
+                                        progress_color=_CLR_ACCENT)
+        self.dpi_scale.set(self.layout.output_dpi)
+        self.dpi_scale.pack(side="left", fill="x", expand=True)
+        self.dpi_label = ctk.CTkLabel(dpi_frame, text=f"{self.layout.output_dpi} DPI",
+                                       width=60, text_color=_CLR_TEXT)
+        self.dpi_label.pack(side="left", padx=4)
+        self.dpi_est_label = ctk.CTkLabel(f, text="", text_color=_CLR_TEXT_DIM,
+                                           font=ctk.CTkFont(size=10))
+        self.dpi_est_label.pack(anchor="w")
         self._update_dpi_estimate()
 
-        sep4 = ttk.Separator(f, orient=tk.HORIZONTAL)
-        sep4.pack(fill=tk.X, pady=6)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- Export buttons ---
-        ttk.Button(f, text="Export Current Record",
-                   command=self._export_current).pack(fill=tk.X, pady=2)
-        ttk.Button(f, text="Export All Records",
-                   command=self._export_all).pack(fill=tk.X, pady=2)
-        ttk.Button(f, text="Export Selected…",
-                   command=self._export_selected).pack(fill=tk.X, pady=2)
+        ctk.CTkButton(f, text="Export Current Record",
+                       command=self._export_current,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=32).pack(fill="x", pady=2)
+        ctk.CTkButton(f, text="Export All Records",
+                       command=self._export_all,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=32).pack(fill="x", pady=2)
+        ctk.CTkButton(f, text="Export Selected…",
+                       command=self._export_selected,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
+                       height=32).pack(fill="x", pady=2)
 
-        # Row count label (updated when data loads)
-        self._output_rows_label = ttk.Label(f, text="No data loaded", foreground="gray")
-        self._output_rows_label.pack(anchor=tk.W, pady=(6, 0))
+        self._output_rows_label = ctk.CTkLabel(f, text="No data loaded",
+                                                text_color=_CLR_TEXT_DIM)
+        self._output_rows_label.pack(anchor="w", pady=(6, 0))
 
     # ------------------------------------------------------------------
     # RIGHT panel: certificate preview
     # ------------------------------------------------------------------
     def _build_preview_panel(self, parent):
-        toolbar = ttk.Frame(parent)
-        toolbar.pack(fill=tk.X, padx=4, pady=2)
+        toolbar = ctk.CTkFrame(parent, fg_color="transparent")
+        toolbar.pack(fill="x", padx=6, pady=4)
 
-        ttk.Button(toolbar, text="Zoom +", command=lambda: self._set_zoom(self._zoom + 0.1)).pack(side=tk.LEFT)
-        ttk.Button(toolbar, text="Zoom -", command=lambda: self._set_zoom(self._zoom - 0.1)).pack(side=tk.LEFT, padx=2)
-        self.zoom_label = ttk.Label(toolbar, text="100%")
-        self.zoom_label.pack(side=tk.LEFT, padx=4)
+        ctk.CTkButton(toolbar, text="Zoom +", width=60, height=28,
+                       command=lambda: self._set_zoom(self._zoom + 0.1),
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left")
+        ctk.CTkButton(toolbar, text="Zoom -", width=60, height=28,
+                       command=lambda: self._set_zoom(self._zoom - 0.1),
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left", padx=2)
+        self.zoom_label = ctk.CTkLabel(toolbar, text="100%", text_color=_CLR_TEXT)
+        self.zoom_label.pack(side="left", padx=6)
 
-        self.test_btn = ttk.Button(toolbar, text="Test Mode: OFF", command=self._toggle_test_mode)
-        self.test_btn.pack(side=tk.LEFT, padx=8)
-        self.snap_btn = ttk.Button(toolbar, text="Snap: OFF", command=self._toggle_snap)
-        self.snap_btn.pack(side=tk.LEFT)
+        self.test_btn = ctk.CTkButton(toolbar, text="Test Mode: OFF",
+                                       command=self._toggle_test_mode,
+                                       fg_color="#78909c", hover_color="#607d8b",
+                                       height=28, width=110)
+        self.test_btn.pack(side="left", padx=4)
+        self.snap_btn = ctk.CTkButton(toolbar, text="Snap: OFF",
+                                       command=self._toggle_snap,
+                                       fg_color="#78909c", hover_color="#607d8b",
+                                       height=28, width=80)
+        self.snap_btn.pack(side="left")
 
-        self.coord_label = ttk.Label(toolbar, text="X: -- Y: --", width=20)
-        self.coord_label.pack(side=tk.RIGHT)
+        self.coord_label = ctk.CTkLabel(toolbar, text="X: -- Y: --",
+                                         width=150, text_color=_CLR_TEXT_DIM)
+        self.coord_label.pack(side="right")
 
-        # Canvas — bd=0 ensures no border offset between event coords and canvas coords
+        # Canvas (tk.Canvas — no CTk equivalent)
         self.canvas = tk.Canvas(parent, bg="#d0d0d0", highlightthickness=0, bd=0)
-        self.canvas.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        self.canvas.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
         self.canvas.bind("<Motion>", self._on_canvas_motion)
         self.canvas.bind("<ButtonPress-1>", self._on_canvas_click)
@@ -714,13 +776,12 @@ class QCertApp:
         self.root.bind("<Shift-Down>", lambda e: self._nudge(0, FINE_NUDGE_MM))
 
     def _key_next(self, event):
-        # Don't trigger when typing in an entry widget
-        if isinstance(event.widget, (tk.Entry, ttk.Entry)):
+        if isinstance(event.widget, (tk.Entry,)):
             return
         self._next_record()
 
     def _key_prev(self, event):
-        if isinstance(event.widget, (tk.Entry, ttk.Entry)):
+        if isinstance(event.widget, (tk.Entry,)):
             return
         self._prev_record()
 
@@ -740,10 +801,9 @@ class QCertApp:
             messagebox.showerror("Import Error", str(exc))
             return
 
-        self.file_label.config(text=os.path.basename(path), foreground="black")
-        # Update column combo and combined columns listbox
+        self.file_label.configure(text=os.path.basename(path), text_color=_CLR_TEXT)
         if hasattr(self, "_col_combo"):
-            self._col_combo["values"] = [""] + self.data.headers
+            self._col_combo.configure(values=[""] + self.data.headers)
         if hasattr(self, "_combined_listbox"):
             self._combined_listbox.delete(0, tk.END)
             for hdr in self.data.headers:
@@ -828,8 +888,6 @@ class QCertApp:
         except Exception as exc:
             messagebox.showerror("Load Error", str(exc))
             return
-        # Migrate old filename templates that relied on columns
-        # that might not exist (e.g. {Name}_{ID}.pdf from earlier versions)
         old = self.layout.output_name_template
         if old in ("{Name}_{ID}.pdf", "{Name}_{ID}", "{Name}"):
             self.layout.output_name_template = "certificate_{Index}"
@@ -921,20 +979,18 @@ class QCertApp:
         self._tf_vars["font_family"].set(tf.font_family)
         self._tf_vars["font_size"].set(str(tf.font_size))
         self._fs_scale.set(tf.font_size)
-        self._fs_label.config(text=f"{int(tf.font_size)} pt")
+        self._fs_label.configure(text=f"{int(tf.font_size)} pt")
         self._tf_vars["font_weight"].set(tf.font_weight)
         self._tf_vars["font_colour"].set(tf.font_colour)
         self._tf_vars["line_spacing"].set(str(tf.line_spacing))
         self._tf_vars["wrap"].set(tf.wrap)
         self._tf_vars["format_rule"].set(tf.format_rule)
         self._tf_vars["show_bbox"].set(tf.show_bbox)
-        # Sync combined columns selection
         if hasattr(self, "_combined_listbox"):
             self._combined_listbox.selection_clear(0, tk.END)
             for i in range(self._combined_listbox.size()):
                 if self._combined_listbox.get(i) in tf.combined_columns:
                     self._combined_listbox.selection_set(i)
-        # Sync separator
         if hasattr(self, "_separator_var"):
             sep = tf.separator
             if sep == " ":
@@ -964,7 +1020,7 @@ class QCertApp:
     def _on_fontsize_slide(self, val):
         """Update label and StringVar when the font-size slider moves."""
         size = int(float(val))
-        self._fs_label.config(text=f"{size} pt")
+        self._fs_label.configure(text=f"{size} pt")
         self._fs_var_ref.set(str(size))
 
     def _apply_text_field(self):
@@ -976,7 +1032,6 @@ class QCertApp:
         tf = self.layout.text_fields[sel[0]]
         tf.source_column = self._tf_vars["source_column"].get()
         tf.static_text = self._tf_vars["static_text"].get()
-        # If a single source column is set, clear combined columns
         if tf.source_column:
             tf.combined_columns = []
         tf.x = float(self._tf_vars["x"].get() or 0)
@@ -1014,7 +1069,6 @@ class QCertApp:
 
         tf = self.layout.text_fields[sel[0]]
 
-        # Get selected columns from the multi-select listbox
         selected_indices = self._combined_listbox.curselection()
         combined = [self._combined_listbox.get(i) for i in selected_indices]
 
@@ -1024,7 +1078,6 @@ class QCertApp:
 
         tf.combined_columns = combined
         tf.separator = self._get_separator_value()
-        # Clear single source_column since we're using combined mode
         tf.source_column = ""
 
         self._refresh_field_list()
@@ -1065,7 +1118,6 @@ class QCertApp:
         import datetime
         today = datetime.date.today()
         day = today.day
-        # Ordinal suffix
         if 11 <= day <= 13:
             suffix = "th"
         elif day % 10 == 1:
@@ -1096,12 +1148,10 @@ class QCertApp:
         """Draw centering guide lines (crosshair + thirds)."""
         cx = ox + page_w_px / 2
         cy = oy + page_h_px / 2
-        # Center crosshair
         self.canvas.create_line(cx, oy, cx, oy + page_h_px,
                                  fill="#b0b0b0", dash=(4, 4), width=1)
         self.canvas.create_line(ox, cy, ox + page_w_px, cy,
                                  fill="#b0b0b0", dash=(4, 4), width=1)
-        # Thirds
         for frac in (1/3, 2/3):
             x = ox + page_w_px * frac
             y = oy + page_h_px * frac
@@ -1200,7 +1250,8 @@ class QCertApp:
         self.outmode_var.set(self.layout.output_mode)
         self.outdir_var.set(self.layout.output_dir)
         self.dpi_var.set(self.layout.output_dpi)
-        self.dpi_label.config(text=f"{self.layout.output_dpi} DPI")
+        self.dpi_scale.set(self.layout.output_dpi)
+        self.dpi_label.configure(text=f"{self.layout.output_dpi} DPI")
         self._refresh_fname_columns()
         self._update_fname_preview()
         self._update_output_rows_label()
@@ -1223,8 +1274,8 @@ class QCertApp:
     def _refresh_fname_columns(self):
         """Update the column dropdown in the filename builder."""
         cols = ["Index"] + (self.data.headers if self.data.rows else [])
-        self._fname_col_combo["values"] = cols
-        self._fname_col_combo.current(0)
+        self._fname_col_combo.configure(values=cols)
+        self._fname_col_combo.set(cols[0] if cols else "")
 
     def _insert_fname_column(self):
         """Insert the selected column as a {Column} placeholder into the filename template."""
@@ -1252,32 +1303,31 @@ class QCertApp:
 
     def _update_output_rows_label(self):
         if self.data.rows:
-            self._output_rows_label.config(
+            self._output_rows_label.configure(
                 text=f"{self.data.count} rows loaded from data")
         else:
-            self._output_rows_label.config(text="No data loaded")
+            self._output_rows_label.configure(text="No data loaded")
 
     def _on_dpi_change(self, val):
         dpi = int(float(val))
         self.dpi_var.set(dpi)
         self.layout.output_dpi = dpi
-        self.dpi_label.config(text=f"{dpi} DPI")
+        self.dpi_label.configure(text=f"{dpi} DPI")
         self._update_dpi_estimate()
 
     def _update_dpi_estimate(self):
         """Estimate file size based on DPI and page dimensions."""
         dpi = self.dpi_var.get()
         w_mm, h_mm = self.layout.page_dimensions_mm()
-        # Approximate: uncompressed RGB raster at this DPI, then ÷ 10 for PDF compression
         w_px = w_mm / 25.4 * dpi
         h_px = h_mm / 25.4 * dpi
-        raw_bytes = w_px * h_px * 3  # RGB
-        estimated = raw_bytes / 10   # rough PDF compression ratio
+        raw_bytes = w_px * h_px * 3
+        estimated = raw_bytes / 10
         if estimated < 1024 * 1024:
             size_str = f"~{estimated / 1024:.0f} KB per file"
         else:
             size_str = f"~{estimated / (1024 * 1024):.1f} MB per file"
-        self.dpi_est_label.config(text=f"Est. size: {size_str} (varies with content)")
+        self.dpi_est_label.configure(text=f"Est. size: {size_str} (varies with content)")
 
     # ==============================================================
     # Preview rendering
@@ -1286,7 +1336,6 @@ class QCertApp:
         """Render the current record and display it on the canvas."""
         record = self.data.current_record if self.data.rows else {}
 
-        # Force bounding boxes on in test mode
         if self._test_mode:
             for tf in self.layout.text_fields:
                 tf.show_bbox = True
@@ -1300,17 +1349,13 @@ class QCertApp:
             self.status_var.set(f"Preview error: {exc}")
             return
 
-        # Restore show_bbox if test mode forced it
         if self._test_mode:
             for tf, var_val in zip(self.layout.text_fields,
                                     [tf.show_bbox for tf in self.layout.text_fields]):
-                pass  # boxes already drawn in the PDF
+                pass
 
-        # Convert PDF bytes -> PIL Image -> Tk PhotoImage
         try:
             from PIL import Image
-            # Use PyPDF2 to get page dimensions, then render with reportlab-produced content
-            # For preview, we convert PDF -> image via a simple approach
             img = self._pdf_bytes_to_image(pdf_bytes)
             if img is None:
                 self.status_var.set("Preview: install poppler for full preview, showing placeholder")
@@ -1319,7 +1364,6 @@ class QCertApp:
                 return
             self._preview_has_pdf = True
 
-            # Scale to fit canvas
             cw = max(self.canvas.winfo_width(), PREVIEW_MAX_W)
             ch = max(self.canvas.winfo_height(), PREVIEW_MAX_H)
             iw, ih = img.size
@@ -1330,22 +1374,15 @@ class QCertApp:
 
             self._preview_pil = img
             self._preview_image = ImageTk.PhotoImage(img)
-            # Scale must be in screen-pixels-per-mm for hit-test/drag.
-            # Use actual PDF page dimensions (from template if present)
-            # rather than layout.page_dimensions_mm(), because when a
-            # template PDF has different dimensions the rendered image
-            # represents the template's page, not the layout's.
             pw_mm, ph_mm = self._actual_page_dims_mm(pdf_bytes)
             self._preview_scale = new_w / pw_mm
             self._preview_page_w = iw
             self._preview_page_h = ih
 
             self.canvas.delete("all")
-            # Place image with NW anchor at a computed top-left so it's centered
             img_x = (cw - new_w) / 2
             img_y = (ch - new_h) / 2
             img_id = self.canvas.create_image(img_x, img_y, image=self._preview_image, anchor=tk.NW)
-            # Query actual bounding box for bulletproof offset
             bbox = self.canvas.bbox(img_id)
             if bbox:
                 self._preview_offset_x = bbox[0]
@@ -1354,7 +1391,6 @@ class QCertApp:
                 self._preview_offset_x = img_x
                 self._preview_offset_y = img_y
 
-            # Draw grid overlay in test mode
             if self._test_mode:
                 self._draw_grid_overlay(new_w, new_h)
             if self._center_grid:
@@ -1372,10 +1408,6 @@ class QCertApp:
             self.status_var.set(f"Warnings: {'; '.join(warnings[:3])}")
 
     def _actual_page_dims_mm(self, pdf_bytes: bytes) -> tuple[float, float]:
-        """Extract actual page dimensions (width, height) in mm from rendered PDF bytes.
-
-        Falls back to layout.page_dimensions_mm() if extraction fails.
-        """
         try:
             reader = PdfReader(io.BytesIO(pdf_bytes))
             mb = reader.pages[0].mediabox
@@ -1389,7 +1421,6 @@ class QCertApp:
         """Convert PDF bytes to a PIL Image. Tries multiple backends."""
         last_error = None
 
-        # Try pdf2image (poppler) first
         try:
             from pdf2image import convert_from_bytes
             images = convert_from_bytes(pdf_bytes, dpi=150, first_page=1, last_page=1)
@@ -1400,12 +1431,11 @@ class QCertApp:
         except Exception as exc:
             last_error = exc
 
-        # Try fitz (PyMuPDF)
         try:
             import fitz
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             page = doc[0]
-            mat = fitz.Matrix(2.0, 2.0)  # 2x zoom = ~144 dpi
+            mat = fitz.Matrix(2.0, 2.0)
             pix = page.get_pixmap(matrix=mat)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
             doc.close()
@@ -1415,7 +1445,6 @@ class QCertApp:
         except Exception as exc:
             last_error = exc
 
-        # Fallback: report error if backends failed with an exception
         if last_error:
             self.status_var.set(f"Preview backend error: {last_error}")
         return None
@@ -1437,17 +1466,15 @@ class QCertApp:
         self._preview_offset_x = ox
         self._preview_offset_y = oy
 
-        # Page rectangle
         self.canvas.create_rectangle(ox, oy, ox + rw, oy + rh, fill="white", outline="#888")
 
-        # Background label
         if self.layout.template_pdf:
-            self.canvas.create_text(ox + rw / 2, oy + 14, text=f"BG: {os.path.basename(self.layout.template_pdf)}",
+            self.canvas.create_text(ox + rw / 2, oy + 14,
+                                     text=f"BG: {os.path.basename(self.layout.template_pdf)}",
                                      fill="#999", font=("", 8))
 
         record = self.data.current_record if self.data.rows else {}
 
-        # Draw text field markers
         for tf in self.layout.text_fields:
             bx, by, bw, bh = self._element_bounds_mm(tf)
             fx = ox + bx * scale
@@ -1467,12 +1494,11 @@ class QCertApp:
 
             self.canvas.create_rectangle(fx, fy, fx + fw, fy + fh,
                                           outline="#4a90d9", dash=(3, 3))
-            # Truncate display text
             display = raw[:40]
             self.canvas.create_text(fx + 2, fy + 2, text=display, anchor=tk.NW,
-                                     fill=tf.font_colour, font=("", max(7, int(tf.font_size * scale / 4))))
+                                     fill=tf.font_colour,
+                                     font=("", max(7, int(tf.font_size * scale / 4))))
 
-        # Draw image layer markers
         for il in self.layout.image_layers:
             ix = ox + il.x * scale
             iy = oy + il.y * scale
@@ -1484,14 +1510,11 @@ class QCertApp:
             self.canvas.create_text(ix + iw / 2, iy + ih / 2, text=label,
                                      fill="#e67e22", font=("", 7))
 
-        # Center grid
         if self._center_grid:
             self._draw_center_grid(rw, rh, ox, oy)
 
-        # Selection handles
         self._draw_selection_handles()
 
-        # Grid in test mode
         if self._test_mode:
             self._draw_grid_overlay(rw, rh, ox, oy)
 
@@ -1515,11 +1538,9 @@ class QCertApp:
     # Canvas interaction (drag-drop, resize, coordinate display)
     # ==============================================================
     def _event_to_canvas(self, event) -> tuple[float, float]:
-        """Convert event coordinates to canvas coordinates (accounts for border/scroll)."""
         return (self.canvas.canvasx(event.x), self.canvas.canvasy(event.y))
 
     def _canvas_to_mm(self, cx, cy) -> tuple[float, float]:
-        """Convert canvas pixel coords to mm on the page."""
         ox = getattr(self, "_preview_offset_x", 0)
         oy = getattr(self, "_preview_offset_y", 0)
         scale = getattr(self, "_preview_scale", 1)
@@ -1530,7 +1551,6 @@ class QCertApp:
         return (mx, my)
 
     def _element_bounds_mm(self, elem) -> Optional[tuple[float, float, float, float]]:
-        """Return (x, y, w, h) in mm for an element."""
         if isinstance(elem, TextFieldDef):
             h = elem.font_size * elem.line_spacing * MM_PER_PT
             return (elem.x, elem.y, elem.width, h)
@@ -1539,7 +1559,6 @@ class QCertApp:
         return None
 
     def _corner_hit_test(self, mx, my, elem) -> Optional[str]:
-        """Check if (mx, my) is near a resize corner of elem. Returns 'tl','tr','bl','br' or None."""
         bounds = self._element_bounds_mm(elem)
         if not bounds:
             return None
@@ -1560,11 +1579,10 @@ class QCertApp:
         cx, cy = self._event_to_canvas(event)
         mx, my = self._canvas_to_mm(cx, cy)
         self._cursor_pos_mm = (mx, my)
-        self.coord_label.config(text=f"X: {mx:.1f} mm  Y: {my:.1f} mm")
+        self.coord_label.configure(text=f"X: {mx:.1f} mm  Y: {my:.1f} mm")
 
-        # Update cursor based on what's under it
         if self._drag_start:
-            return  # don't change cursor mid-drag
+            return
         elem_id = self._hit_test(mx, my)
         if elem_id:
             obj = self._find_element(elem_id)
@@ -1589,7 +1607,6 @@ class QCertApp:
             self._selected_element = elem
             obj = self._find_element(elem)
             if obj:
-                # Check if clicking a resize corner
                 corner = self._corner_hit_test(mx, my, obj)
                 self._drag_start = (cx, cy)
                 self._drag_elem_start = (obj.x, obj.y)
@@ -1605,11 +1622,11 @@ class QCertApp:
                     self._resize_mode = False
                     self._resize_edge = None
                     self._resize_start_size = None
-            self._refresh_preview()  # redraw to show selection handles
+            self._refresh_preview()
         else:
             if self._selected_element:
                 self._selected_element = None
-                self._refresh_preview()  # redraw to remove handles
+                self._refresh_preview()
 
     def _on_canvas_drag(self, event):
         if not self._drag_start or not self._drag_elem_start:
@@ -1635,7 +1652,6 @@ class QCertApp:
         self._refresh_preview()
 
     def _handle_resize(self, obj, dx, dy):
-        """Resize obj based on drag delta and active corner."""
         edge = self._resize_edge
         sw, sh = self._resize_start_size
         sx, sy = self._drag_elem_start
@@ -1677,7 +1693,7 @@ class QCertApp:
             new_h = max(MIN_ELEMENT_SIZE_MM, round(new_h / GRID_STEP_MM) * GRID_STEP_MM)
 
         if isinstance(obj, TextFieldDef):
-            obj.width = new_w  # text fields only resize width
+            obj.width = new_w
         elif isinstance(obj, ImageLayerDef):
             obj.width = new_w
             obj.height = new_h
@@ -1693,9 +1709,7 @@ class QCertApp:
         self._resize_start_size = None
 
     def _hit_test(self, mx, my) -> Optional[str]:
-        """Return element id at (mx, my) mm, or None."""
-        min_click = 4.0  # mm — minimum clickable zone so small elements are easy to hit
-        # Check text fields (reverse order = topmost first)
+        min_click = 4.0
         for tf in reversed(self.layout.text_fields):
             bounds = self._element_bounds_mm(tf)
             if bounds:
@@ -1732,12 +1746,6 @@ class QCertApp:
             self._img_vars["height"].set(f"{obj.height:.1f}")
 
     def _draw_selection_handles(self):
-        """Draw resize corner handles on the currently selected element.
-
-        The selection rectangle itself is rendered into the PDF by the
-        renderer (pixel-perfect).  Here we only draw the small corner
-        grab-handles as canvas overlays.
-        """
         obj = self._find_element(self._selected_element)
         if not obj:
             return
@@ -1750,19 +1758,16 @@ class QCertApp:
         oy = getattr(self, "_preview_offset_y", 0)
 
         handle_px = 5
-        # Element edges in canvas pixels
         ex = ox + x * scale
         ey = oy + y * scale
         ew = w * scale
         eh = h * scale
 
-        # For placeholder preview (no PDF bbox) draw a thin outline too
         if not getattr(self, "_preview_has_pdf", False):
             pad = 3
             self.canvas.create_rectangle(ex - pad, ey - pad, ex + ew + pad, ey + eh + pad,
                                           outline="#4a90d9", width=2)
 
-        # Corner handles
         corners = [(ex, ey), (ex + ew, ey), (ex, ey + eh), (ex + ew, ey + eh)]
         for cx_px, cy_px in corners:
             self.canvas.create_rectangle(
@@ -1789,17 +1794,17 @@ class QCertApp:
 
     def _set_zoom(self, level):
         self._zoom = max(0.3, min(3.0, level))
-        self.zoom_label.config(text=f"{int(self._zoom * 100)}%")
+        self.zoom_label.configure(text=f"{int(self._zoom * 100)}%")
         self._refresh_preview()
 
     def _toggle_test_mode(self):
         self._test_mode = not self._test_mode
-        self.test_btn.config(text=f"Test Mode: {'ON' if self._test_mode else 'OFF'}")
+        self.test_btn.configure(text=f"Test Mode: {'ON' if self._test_mode else 'OFF'}")
         self._refresh_preview()
 
     def _toggle_snap(self):
         self._snap_to_grid = not self._snap_to_grid
-        self.snap_btn.config(text=f"Snap: {'ON' if self._snap_to_grid else 'OFF'}")
+        self.snap_btn.configure(text=f"Snap: {'ON' if self._snap_to_grid else 'OFF'}")
 
     # ==============================================================
     # Undo / redo
@@ -1825,7 +1830,6 @@ class QCertApp:
     # Export / batch generation
     # ==============================================================
     def _ensure_output_dir(self) -> str:
-        """Return the output directory, prompting the user to pick one if not set."""
         self._apply_output_settings()
         out_dir = self.layout.output_dir
         if not out_dir or not os.path.isdir(out_dir):
@@ -1885,19 +1889,21 @@ class QCertApp:
             return
 
         # Progress window
-        prog_win = tk.Toplevel(self.root)
+        prog_win = ctk.CTkToplevel(self.root)
         prog_win.title("Exporting…")
-        prog_win.geometry("350x120")
+        prog_win.geometry("380x130")
         prog_win.transient(self.root)
-        prog_label = ttk.Label(prog_win, text="Starting…")
-        prog_label.pack(padx=10, pady=10)
-        prog_bar = ttk.Progressbar(prog_win, length=300, mode="determinate")
-        prog_bar.pack(padx=10, pady=5)
+        prog_label = ctk.CTkLabel(prog_win, text="Starting…", text_color=_CLR_TEXT)
+        prog_label.pack(padx=16, pady=(16, 8))
+        prog_bar = ctk.CTkProgressBar(prog_win, width=320,
+                                        progress_color=_CLR_ACCENT)
+        prog_bar.pack(padx=16, pady=8)
+        prog_bar.set(0)
 
         def progress_cb(done, total):
-            pct = int(done / total * 100) if total else 100
-            prog_bar["value"] = pct
-            prog_label.config(text=f"Generating {done} / {total}…")
+            pct = done / total if total else 1.0
+            prog_bar.set(pct)
+            prog_label.configure(text=f"Generating {done} / {total}…")
             prog_win.update_idletasks()
 
         def run():
@@ -1921,32 +1927,35 @@ class QCertApp:
             messagebox.showinfo("Batch Export Complete", msg)
             self.status_var.set(f"Exported {summary['generated']} certificates to {out_dir}")
 
-        # Run in a thread to keep UI responsive
         threading.Thread(target=run, daemon=True).start()
 
 
 # ------------------------------------------------------------------
-# Row-range selection dialog
+# Row-range selection dialog (CTkToplevel)
 # ------------------------------------------------------------------
 
-class _RangeDialog(tk.Toplevel):
+class _RangeDialog(ctk.CTkToplevel):
     def __init__(self, parent, total):
         super().__init__(parent)
         self.title("Select Rows")
-        self.geometry("300x150")
+        self.geometry("340x180")
         self.transient(parent)
         self.grab_set()
         self.result = None
 
-        ttk.Label(self, text=f"Total rows: {total}").pack(padx=10, pady=5)
-        ttk.Label(self, text="Enter row numbers (comma-separated)\nor ranges like 1-10:").pack(padx=10)
+        ctk.CTkLabel(self, text=f"Total rows: {total}",
+                     text_color=_CLR_TEXT).pack(padx=16, pady=(12, 4))
+        ctk.CTkLabel(self, text="Enter row numbers (comma-separated)\nor ranges like 1-10:",
+                     text_color=_CLR_TEXT_DIM).pack(padx=16)
         self.entry_var = tk.StringVar(value=f"1-{total}")
-        ttk.Entry(self, textvariable=self.entry_var, width=30).pack(padx=10, pady=5)
+        ctk.CTkEntry(self, textvariable=self.entry_var, width=260, height=30).pack(padx=16, pady=8)
 
-        bf = ttk.Frame(self)
-        bf.pack(pady=5)
-        ttk.Button(bf, text="OK", command=self._ok).pack(side=tk.LEFT, padx=4)
-        ttk.Button(bf, text="Cancel", command=self.destroy).pack(side=tk.LEFT, padx=4)
+        bf = ctk.CTkFrame(self, fg_color="transparent")
+        bf.pack(pady=8)
+        ctk.CTkButton(bf, text="OK", width=80, command=self._ok,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left", padx=4)
+        ctk.CTkButton(bf, text="Cancel", width=80, command=self.destroy,
+                       fg_color="#78909c", hover_color="#607d8b").pack(side="left", padx=4)
 
         self.wait_window()
 
@@ -1975,7 +1984,7 @@ class _RangeDialog(tk.Toplevel):
 # ------------------------------------------------------------------
 
 def main():
-    root = tk.Tk()
+    root = ctk.CTk()
     QCertApp(root)
     root.mainloop()
 
