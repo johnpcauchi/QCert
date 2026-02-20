@@ -130,6 +130,7 @@ class QCertApp:
         self._resize_edge = None       # 'tl', 'tr', 'bl', 'br'
         self._resize_start_size = None # (width, height) at drag start
         self._refreshing = False  # guard against _on_field_select during list rebuilds
+        self._auto_applying = False  # guard against trace-triggered auto-apply during programmatic updates
 
         # Configure ttk style for Treeview (still used — no CTk equivalent)
         style = ttk.Style(self.root)
@@ -206,13 +207,13 @@ class QCertApp:
         left.pack(side="left", fill="y", padx=(0, 4))
         left.pack_propagate(False)
 
-        data_frame = ctk.CTkFrame(left, fg_color=_CLR_DATA_PANEL, corner_radius=10)
-        data_frame.pack(fill="both", expand=True, pady=(0, 4))
-        self._build_data_panel(data_frame)
-
         tools_frame = ctk.CTkFrame(left, fg_color=_CLR_TOOLS_PANEL, corner_radius=10)
-        tools_frame.pack(fill="x", pady=(0, 0))
+        tools_frame.pack(fill="x", pady=(0, 4))
         self._build_tools_panel(tools_frame)
+
+        data_frame = ctk.CTkFrame(left, fg_color=_CLR_DATA_PANEL, corner_radius=10)
+        data_frame.pack(fill="both", expand=True, pady=(0, 0))
+        self._build_data_panel(data_frame)
 
         # --- MIDDLE: Controls ---
         mid = ctk.CTkFrame(main, width=340, fg_color=_CLR_CTRL_PANEL, corner_radius=10)
@@ -335,30 +336,37 @@ class QCertApp:
                      font=ctk.CTkFont(size=14, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
-        nb = ctk.CTkTabview(parent, fg_color=_CLR_WHITE,
-                             segmented_button_fg_color="#d4e4f7",
-                             segmented_button_selected_color=_CLR_ACCENT,
-                             segmented_button_selected_hover_color=_CLR_ACCENT_HOVER,
-                             segmented_button_unselected_color="#d4e4f7",
-                             segmented_button_unselected_hover_color="#bdd4ec")
-        nb.pack(fill="both", expand=True, padx=4, pady=4)
+        scroll = ctk.CTkScrollableFrame(parent, fg_color="transparent")
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
-        # --- Text Fields tab ---
-        tf_tab = nb.add("Text Fields")
-        self._build_text_field_controls(tf_tab)
+        # --- Text Fields section (always visible) ---
+        ctk.CTkLabel(scroll, text="Text Fields",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color=_CLR_ACCENT).pack(anchor="w", padx=4, pady=(6, 2))
+        tf_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        tf_frame.pack(fill="x", padx=2, pady=(0, 6))
+        self._build_text_field_controls(tf_frame)
 
-        # --- Images tab ---
-        img_tab = nb.add("Images")
-        self._build_image_controls(img_tab)
+        # --- Images section (always visible) ---
+        ctk.CTkLabel(scroll, text="Images",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color=_CLR_ACCENT).pack(anchor="w", padx=4, pady=(6, 2))
+        img_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        img_frame.pack(fill="x", padx=2, pady=(0, 6))
+        self._build_image_controls(img_frame)
 
-        # --- Output tab ---
-        out_tab = nb.add("Output")
-        self._build_output_controls(out_tab)
+        # --- Output section (always visible) ---
+        ctk.CTkLabel(scroll, text="Output",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color=_CLR_ACCENT).pack(anchor="w", padx=4, pady=(6, 2))
+        out_frame = ctk.CTkFrame(scroll, fg_color="transparent")
+        out_frame.pack(fill="x", padx=2, pady=(0, 6))
+        self._build_output_controls(out_frame)
 
     def _build_text_field_controls(self, parent):
-        # Scrollable container
-        scroll_frame = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        scroll_frame.pack(fill="both", expand=True)
+        # Container (parent is already scrollable)
+        scroll_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        scroll_frame.pack(fill="x")
 
         top = ctk.CTkFrame(scroll_frame, fg_color="transparent")
         top.pack(fill="x", padx=4, pady=4)
@@ -381,7 +389,7 @@ class QCertApp:
 
         # --- Single Column source ---
         props_label = ctk.CTkLabel(scroll_frame, text="Field Properties",
-                                    font=ctk.CTkFont(size=11, weight="bold"),
+                                    font=ctk.CTkFont(size=14, weight="bold"),
                                     text_color=_CLR_TEXT)
         props_label.pack(anchor="w", padx=6, pady=(6, 2))
         props = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
@@ -413,32 +421,32 @@ class QCertApp:
         ]:
             ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
                          font=ctk.CTkFont(size=11)).grid(
-                row=row, column=0, sticky="w", padx=6, pady=2)
+                row=row, column=0, sticky="w", padx=4, pady=1)
             if widget_type == "entry":
                 var = tk.StringVar(value=str(default))
-                ctk.CTkEntry(props, textvariable=var, width=120,
-                             height=26).grid(row=row, column=1, sticky="ew", padx=4, pady=2)
+                ctk.CTkEntry(props, textvariable=var, width=100,
+                             height=22).grid(row=row, column=1, sticky="ew", padx=3, pady=1)
             elif widget_type == "combo":
                 var = tk.StringVar(value=default)
                 cb = ctk.CTkComboBox(props, variable=var, values=[""],
-                                      width=120, height=26,
+                                      width=100, height=22,
                                       command=self._on_source_column_change)
-                cb.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
+                cb.grid(row=row, column=1, sticky="ew", padx=3, pady=1)
                 self._col_combo = cb
             elif widget_type == "font":
                 var = tk.StringVar(value=default)
                 ctk.CTkComboBox(props, variable=var, values=_FONT_FAMILIES,
-                                width=120, height=26).grid(
-                    row=row, column=1, sticky="ew", padx=4, pady=2)
+                                width=100, height=22).grid(
+                    row=row, column=1, sticky="ew", padx=3, pady=1)
             elif widget_type == "fontsize":
                 var = tk.StringVar(value=str(default))
                 fs_frame = ctk.CTkFrame(props, fg_color="transparent")
-                fs_frame.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
+                fs_frame.grid(row=row, column=1, sticky="ew", padx=3, pady=1)
                 self._fs_label = ctk.CTkLabel(fs_frame, text=f"{default} pt",
-                                               width=45, text_color=_CLR_TEXT)
+                                               width=40, text_color=_CLR_TEXT)
                 self._fs_var_ref = var
                 self._fs_scale = ctk.CTkSlider(
-                    fs_frame, from_=6, to=72, width=100,
+                    fs_frame, from_=6, to=72, width=80,
                     command=self._on_fontsize_slide,
                     button_color=_CLR_ACCENT,
                     button_hover_color=_CLR_ACCENT_HOVER,
@@ -451,29 +459,29 @@ class QCertApp:
                 var = tk.StringVar(value=default)
                 ctk.CTkComboBox(props, variable=var,
                                 values=["left", "center", "right"],
-                                width=120, height=26).grid(
-                    row=row, column=1, sticky="ew", padx=4, pady=2)
+                                width=100, height=22).grid(
+                    row=row, column=1, sticky="ew", padx=3, pady=1)
             elif widget_type == "weight":
                 var = tk.StringVar(value=default)
                 ctk.CTkComboBox(props, variable=var,
                                 values=["normal", "bold"],
-                                width=120, height=26).grid(
-                    row=row, column=1, sticky="ew", padx=4, pady=2)
+                                width=100, height=22).grid(
+                    row=row, column=1, sticky="ew", padx=3, pady=1)
             elif widget_type == "colour":
                 var = tk.StringVar(value=default)
                 f = ctk.CTkFrame(props, fg_color="transparent")
-                f.grid(row=row, column=1, sticky="ew", padx=4, pady=2)
-                ctk.CTkEntry(f, textvariable=var, width=80, height=26).pack(side="left")
-                ctk.CTkButton(f, text="…", width=28, height=26,
+                f.grid(row=row, column=1, sticky="ew", padx=3, pady=1)
+                ctk.CTkEntry(f, textvariable=var, width=70, height=22).pack(side="left")
+                ctk.CTkButton(f, text="…", width=24, height=22,
                               fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                               command=lambda v=var: self._pick_colour(v)).pack(side="left", padx=2)
             elif widget_type == "format_rule":
                 var = tk.StringVar(value=default)
-                ctk.CTkComboBox(props, variable=var, width=120, height=26,
+                ctk.CTkComboBox(props, variable=var, width=100, height=22,
                                 values=["", "uppercase", "lowercase", "titlecase",
                                         "sentencecase", "DD MMM YYYY", "DD/MM/YYYY",
                                         "YYYY-MM-DD", "today"]).grid(
-                    row=row, column=1, sticky="ew", padx=4, pady=2)
+                    row=row, column=1, sticky="ew", padx=3, pady=1)
             elif widget_type == "check":
                 var = tk.BooleanVar(value=default)
                 ctk.CTkCheckBox(props, text="", variable=var,
@@ -481,14 +489,15 @@ class QCertApp:
                                 width=24,
                                 fg_color=_CLR_ACCENT,
                                 hover_color=_CLR_ACCENT_HOVER).grid(
-                    row=row, column=1, sticky="w", padx=4, pady=2)
+                    row=row, column=1, sticky="w", padx=3, pady=1)
             self._tf_vars[key] = var
             row += 1
 
         props.columnconfigure(1, weight=1)
-        ctk.CTkButton(props, text="Apply", command=self._apply_text_field,
-                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
-                       height=30).grid(row=row, column=0, columnspan=2, pady=6)
+
+        # Live auto-apply: attach traces so changes take effect immediately
+        for var in self._tf_vars.values():
+            var.trace_add("write", self._auto_apply_text_field)
 
         # --- Custom Fields (combine multiple columns) ---
         custom_label = ctk.CTkLabel(scroll_frame, text="Custom Fields (combine columns)",
@@ -605,8 +614,8 @@ class QCertApp:
                        height=30).grid(row=row, column=0, columnspan=2, pady=6)
 
     def _build_output_controls(self, parent):
-        f = ctk.CTkScrollableFrame(parent, fg_color="transparent")
-        f.pack(fill="both", expand=True, padx=4, pady=4)
+        f = ctk.CTkFrame(parent, fg_color="transparent")
+        f.pack(fill="x", padx=4, pady=4)
 
         # --- Output directory ---
         ctk.CTkLabel(f, text="Output folder:",
@@ -970,6 +979,7 @@ class QCertApp:
             return
         tf = self.layout.text_fields[sel[0]]
         self._selected_element = tf.id
+        self._auto_applying = True  # suppress auto-apply during programmatic load
         self._tf_vars["source_column"].set(tf.source_column)
         self._tf_vars["static_text"].set(tf.static_text)
         self._tf_vars["x"].set(str(tf.x))
@@ -999,6 +1009,40 @@ class QCertApp:
                 self._separator_var.set("(none)")
             else:
                 self._separator_var.set(sep)
+        self._auto_applying = False  # re-enable auto-apply
+
+    def _auto_apply_text_field(self, *_args):
+        """Live-apply field property changes without needing the Apply button."""
+        if self._auto_applying or self._refreshing:
+            return
+        sel = self.fields_listbox.curselection()
+        if not sel:
+            return
+        tf = self.layout.text_fields[sel[0]]
+        try:
+            tf.source_column = self._tf_vars["source_column"].get()
+            tf.static_text = self._tf_vars["static_text"].get()
+            if tf.source_column:
+                tf.combined_columns = []
+            tf.x = float(self._tf_vars["x"].get() or 0)
+            tf.y = float(self._tf_vars["y"].get() or 0)
+            tf.width = float(self._tf_vars["width"].get() or 100)
+            tf.alignment = self._tf_vars["alignment"].get()
+            tf.font_family = self._tf_vars["font_family"].get()
+            tf.font_size = float(self._tf_vars["font_size"].get() or 12)
+            tf.font_weight = self._tf_vars["font_weight"].get()
+            tf.font_colour = self._tf_vars["font_colour"].get()
+            tf.line_spacing = float(self._tf_vars["line_spacing"].get() or 1.2)
+            tf.wrap = self._tf_vars["wrap"].get()
+            tf.format_rule = self._tf_vars["format_rule"].get()
+            tf.show_bbox = self._tf_vars["show_bbox"].get()
+        except (ValueError, tk.TclError):
+            return  # partial edit in progress, ignore
+        self._auto_applying = True
+        self._refresh_field_list()
+        self.fields_listbox.selection_set(sel[0])
+        self._auto_applying = False
+        self._refresh_preview()
 
     def _on_source_column_change(self, _event=None):
         """Auto-apply source column when user picks one from the combo."""
