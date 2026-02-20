@@ -1846,6 +1846,23 @@ class QCertApp:
         if not self.data.rows:
             messagebox.showinfo("Export", "No data loaded.")
             return
+        if not self.layout.text_fields and not self.layout.image_layers:
+            proceed = messagebox.askyesno(
+                "No Content",
+                "No text fields or image layers have been added.\n"
+                "The exported certificate will only contain the background template.\n\n"
+                "Add text fields via the toolbar to place data on the certificate.\n\n"
+                "Export anyway?",
+            )
+            if not proceed:
+                return
+        if self.layout.template_pdf and not os.path.isfile(self.layout.template_pdf):
+            messagebox.showwarning(
+                "Template Missing",
+                f"Background template not found:\n{self.layout.template_pdf}\n\n"
+                "The export will produce a blank page. Please re-select the background PDF.",
+            )
+            return
         from .formatter import safe_filename
         out_dir = self._ensure_output_dir()
         if not out_dir:
@@ -1883,6 +1900,23 @@ class QCertApp:
     def _run_batch(self, indices):
         if not self.data.rows:
             messagebox.showinfo("Export", "No data loaded.")
+            return
+        if not self.layout.text_fields and not self.layout.image_layers:
+            proceed = messagebox.askyesno(
+                "No Content",
+                "No text fields or image layers have been added.\n"
+                "The exported certificates will only contain the background template.\n\n"
+                "Add text fields via the toolbar to place data on the certificate.\n\n"
+                "Export anyway?",
+            )
+            if not proceed:
+                return
+        if self.layout.template_pdf and not os.path.isfile(self.layout.template_pdf):
+            messagebox.showwarning(
+                "Template Missing",
+                f"Background template not found:\n{self.layout.template_pdf}\n\n"
+                "The export will produce blank pages. Please re-select the background PDF.",
+            )
             return
         out_dir = self._ensure_output_dir()
         if not out_dir:

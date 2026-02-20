@@ -388,10 +388,15 @@ def _draw_image(c, img: ImageLayerDef, record: dict[str, str],
 # Merge overlay onto background template
 # ------------------------------------------------------------------
 
-def _merge_page(background_pdf: Optional[str], overlay_bytes: bytes) -> bytes:
+def _merge_page(background_pdf: Optional[str], overlay_bytes: bytes,
+                warn: Optional[Callable] = None) -> bytes:
     """Merge *overlay_bytes* (a single-page PDF) onto page 1 of *background_pdf*.
     If no background is provided, the overlay is returned as-is."""
-    if not background_pdf or not os.path.isfile(background_pdf):
+    if not background_pdf:
+        return overlay_bytes
+    if not os.path.isfile(background_pdf):
+        if warn:
+            warn(f"Template PDF not found: {background_pdf}")
         return overlay_bytes
 
     bg_reader = PdfReader(background_pdf)
@@ -447,13 +452,16 @@ def render_single(layout: LayoutProfile, record: dict[str, str],
                   warn: Optional[Callable] = None,
                   selected_id: Optional[str] = None) -> bytes:
     """Render one certificate and return raw PDF bytes."""
+    if not layout.text_fields and not layout.image_layers and warn:
+        warn("No text fields or image layers configured — certificate will be empty")
+
     # Use the template's page dimensions so the overlay coordinate system
     # matches the background — this prevents content from shifting when
     # the template dimensions differ from layout.page_size.
     bg_size = _get_template_page_size(layout.template_pdf)
     overlay = _render_overlay(layout, record, warn, selected_id=selected_id,
                               page_size_override=bg_size)
-    pdf_bytes = _merge_page(layout.template_pdf, overlay)
+    pdf_bytes = _merge_page(layout.template_pdf, overlay, warn=warn)
 
     # Rasterize at the configured DPI (skip for preview calls that
     # pass selected_id, and skip when DPI is at the vector default).

@@ -5,6 +5,12 @@ import os
 import sys
 
 
+def _pause_on_error():
+    """Keep the console window open so Windows users can read the error."""
+    if sys.platform == "win32":
+        input("\nPress Enter to exit...")
+
+
 def main():
     # Ensure working directory is the project root (where this script lives)
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,21 +20,34 @@ def main():
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
 
-    # Check dependencies
+    # Check dependencies — the import name may differ from the pip name
+    deps = [
+        ("openpyxl", "openpyxl"),
+        ("reportlab", "reportlab"),
+        ("PIL", "Pillow"),
+        ("PyPDF2", "PyPDF2"),
+        ("customtkinter", "customtkinter"),
+    ]
     missing = []
-    for pkg in ["openpyxl", "reportlab", "PIL", "PyPDF2"]:
+    for import_name, pip_name in deps:
         try:
-            __import__(pkg)
+            __import__(import_name)
         except ImportError:
-            missing.append(pkg)
+            missing.append(pip_name)
 
     if missing:
         print("Missing dependencies:", ", ".join(missing))
         print("Install them with:  pip install -r requirements.txt")
+        _pause_on_error()
         sys.exit(1)
 
-    from qcert.app import main as app_main
-    app_main()
+    try:
+        from qcert.app import main as app_main
+        app_main()
+    except Exception as exc:
+        print(f"\nQCert failed to start: {exc}")
+        _pause_on_error()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
