@@ -49,22 +49,19 @@ RESIZE_HANDLE_MM = 3.0      # corner handle hit-zone in mm
 MIN_ELEMENT_SIZE_MM = 5.0    # minimum width/height when resizing
 
 # ------------------------------------------------------------------
-# Modern Light Theme — Soft Neutral + Electric Accent
+# Colour palette (pastel, light mode)
 # ------------------------------------------------------------------
-THEME = {
-    "bg_main":    "#F8FAFC",   # overall background
-    "bg_sidebar": "#E2E8F0",   # left sidebar
-    "bg_controls":"#FFFFFF",   # middle panel
-    "bg_preview": "#F1F5F9",   # preview area
-    "bg_card":    "#FFFFFF",   # inner cards
-    "border":     "#CBD5E1",   # subtle borders
-    "text_main":  "#0F172A",   # primary text
-    "text_muted": "#64748B",   # muted text
-    "accent":     "#2563EB",   # primary action
-    "accent_hover":"#1D4ED8",
-    "success":    "#16A34A",
-    "danger":     "#DC2626",
-}
+_CLR_BG = "#f0f4f8"           # overall background
+_CLR_DATA_PANEL = "#e8f5e9"   # soft green
+_CLR_TOOLS_PANEL = "#fff8e1"  # warm cream
+_CLR_CTRL_PANEL = "#b3d8fd"   # light electric blue
+_CLR_PREVIEW_BG = "#e8eaed"   # light grey canvas surround
+_CLR_ACCENT = "#5b9bd5"       # button accent blue
+_CLR_ACCENT_HOVER = "#4a8bc2"
+_CLR_TEXT = "#1e293b"          # dark slate text
+_CLR_TEXT_DIM = "#64748b"      # muted text
+_CLR_WHITE = "#ffffff"
+_CLR_BORDER = "#c8d6e5"
 
 
 # ------------------------------------------------------------------
@@ -114,7 +111,7 @@ class QCertApp:
         self.root.title(APP_TITLE)
         self.root.geometry("1360x820")
         self.root.minsize(1100, 700)
-        self.root.configure(fg_color=THEME["bg_main"])
+        self.root.configure(fg_color=_CLR_BG)
 
         # State
         self.data = DataStore()
@@ -206,33 +203,30 @@ class QCertApp:
     # ==============================================================
     def _build_ui(self):
         # Main container
-        main = ctk.CTkFrame(self.root, fg_color=THEME["bg_main"])
+        main = ctk.CTkFrame(self.root, fg_color=_CLR_BG)
         main.pack(fill="both", expand=True, padx=4, pady=4)
 
         # --- LEFT: Data + Tools panel ---
-        left = ctk.CTkFrame(main, width=310, fg_color=THEME["bg_sidebar"],
-                             corner_radius=12)
+        left = ctk.CTkFrame(main, width=310, fg_color=_CLR_BG)
         left.pack(side="left", fill="y", padx=(0, 4))
         left.pack_propagate(False)
 
-        tools_frame = ctk.CTkFrame(left, fg_color="transparent", corner_radius=10)
+        tools_frame = ctk.CTkFrame(left, fg_color=_CLR_TOOLS_PANEL, corner_radius=10)
         tools_frame.pack(fill="x", pady=(0, 4))
         self._build_tools_panel(tools_frame)
 
-        data_frame = ctk.CTkFrame(left, fg_color="transparent", corner_radius=10)
+        data_frame = ctk.CTkFrame(left, fg_color=_CLR_DATA_PANEL, corner_radius=10)
         data_frame.pack(fill="both", expand=True, pady=(0, 0))
         self._build_data_panel(data_frame)
 
         # --- MIDDLE: Controls ---
-        mid = ctk.CTkFrame(main, width=340, fg_color=THEME["bg_controls"],
-                            corner_radius=12, border_width=1,
-                            border_color=THEME["border"])
+        mid = ctk.CTkFrame(main, width=340, fg_color=_CLR_CTRL_PANEL, corner_radius=10)
         mid.pack(side="left", fill="y", padx=(0, 4))
         mid.pack_propagate(False)
         self._build_controls_panel(mid)
 
         # --- RIGHT: Preview ---
-        right = ctk.CTkFrame(main, fg_color=THEME["bg_preview"], corner_radius=12)
+        right = ctk.CTkFrame(main, fg_color=_CLR_PREVIEW_BG, corner_radius=10)
         right.pack(side="left", fill="both", expand=True)
         self._build_preview_panel(right)
 
@@ -240,8 +234,7 @@ class QCertApp:
         self.status_var = tk.StringVar(value="Ready")
         status = ctk.CTkLabel(self.root, textvariable=self.status_var,
                               anchor="w", height=28,
-                              fg_color=THEME["bg_sidebar"],
-                              text_color=THEME["text_muted"],
+                              fg_color="#e2e8f0", text_color=_CLR_TEXT_DIM,
                               corner_radius=0)
         status.pack(side="bottom", fill="x")
 
@@ -250,17 +243,17 @@ class QCertApp:
     # ------------------------------------------------------------------
     def _build_data_panel(self, parent):
         ctk.CTkLabel(parent, text="\U0001F4CB  Data", font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w", padx=8, pady=(8, 0))
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
         btn_frame.pack(fill="x", padx=8, pady=4)
         ctk.CTkButton(btn_frame, text="Open Spreadsheet…",
                        command=self._open_spreadsheet,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=30).pack(side="left")
 
         self.file_label = ctk.CTkLabel(parent, text="No file loaded",
-                                        text_color=THEME["text_muted"])
+                                        text_color=_CLR_TEXT_DIM)
         self.file_label.pack(anchor="w", padx=8)
 
         # Navigation
@@ -268,40 +261,40 @@ class QCertApp:
         nav.pack(fill="x", padx=8, pady=4)
         ctk.CTkButton(nav, text="<< Prev", width=70,
                        command=self._prev_record,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=28).pack(side="left")
         self.rec_var = tk.StringVar(value="0 / 0")
         ctk.CTkLabel(nav, textvariable=self.rec_var, width=80,
-                     text_color=THEME["text_main"]).pack(side="left", padx=4)
+                     text_color=_CLR_TEXT).pack(side="left", padx=4)
         ctk.CTkButton(nav, text="Next >>", width=70,
                        command=self._next_record,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=28).pack(side="left")
 
         # Go-to
         sf = ctk.CTkFrame(parent, fg_color="transparent")
         sf.pack(fill="x", padx=8, pady=2)
-        ctk.CTkLabel(sf, text="Go to row:", text_color=THEME["text_main"]).pack(side="left")
+        ctk.CTkLabel(sf, text="Go to row:", text_color=_CLR_TEXT).pack(side="left")
         self.goto_var = tk.StringVar()
         ctk.CTkEntry(sf, textvariable=self.goto_var, width=60, height=28).pack(side="left", padx=4)
         ctk.CTkButton(sf, text="Go", width=40, command=self._goto_record,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=28).pack(side="left")
 
         # Search
         sf2 = ctk.CTkFrame(parent, fg_color="transparent")
         sf2.pack(fill="x", padx=8, pady=2)
-        ctk.CTkLabel(sf2, text="Search:", text_color=THEME["text_main"]).pack(side="left")
+        ctk.CTkLabel(sf2, text="Search:", text_color=_CLR_TEXT).pack(side="left")
         self.search_var = tk.StringVar()
         ctk.CTkEntry(sf2, textvariable=self.search_var, width=120, height=28).pack(side="left", padx=4)
         ctk.CTkButton(sf2, text="Find", width=45, command=self._search_records,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=28).pack(side="left")
 
         # Data table (Treeview — no CTk equivalent)
         ctk.CTkLabel(parent, text="Current Record",
                      font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w", padx=8, pady=(6, 0))
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(6, 0))
         tree_frame = ctk.CTkFrame(parent, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=8, pady=(2, 8))
         self.data_tree = ttk.Treeview(tree_frame, columns=("Column", "Value"),
@@ -317,7 +310,7 @@ class QCertApp:
 
     def _build_tools_panel(self, parent):
         ctk.CTkLabel(parent, text="\u2699  Tools", font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w", padx=8, pady=(8, 0))
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         # Center Grid toggle
         self._center_grid_var = tk.BooleanVar(value=False)
@@ -325,18 +318,18 @@ class QCertApp:
                          variable=self._center_grid_var,
                          onvalue=True, offvalue=False,
                          command=self._toggle_center_grid,
-                         text_color=THEME["text_main"],
-                         fg_color=THEME["accent"], hover_color=THEME["accent_hover"]
+                         text_color=_CLR_TEXT,
+                         fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER
                          ).pack(fill="x", padx=12, pady=4)
 
         ctk.CTkButton(parent, text="Center Selected Field",
                        command=self._center_selected_field,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=30).pack(fill="x", padx=12, pady=2)
 
         ctk.CTkButton(parent, text="Insert Date",
                        command=self._insert_date_field,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=30).pack(fill="x", padx=12, pady=(2, 10))
 
     # ------------------------------------------------------------------
@@ -345,12 +338,12 @@ class QCertApp:
     def _build_controls_panel(self, parent):
         ctk.CTkLabel(parent, text="\U0001F4D0  Fields & Layers",
                      font=ctk.CTkFont(family="Segoe UI", size=18, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w", padx=8, pady=(8, 0))
+                     text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         tabview = ctk.CTkTabview(parent, fg_color="transparent",
-                                  segmented_button_fg_color=THEME["border"],
-                                  segmented_button_selected_color=THEME["accent"],
-                                  segmented_button_unselected_color=THEME["bg_card"])
+                                  segmented_button_fg_color=_CLR_BORDER,
+                                  segmented_button_selected_color=_CLR_ACCENT,
+                                  segmented_button_unselected_color=_CLR_WHITE)
         tabview.pack(fill="both", expand=True, padx=4, pady=4)
 
         tab_text = tabview.add("Text Fields")
@@ -380,16 +373,16 @@ class QCertApp:
         top = ctk.CTkFrame(scroll_frame, fg_color="transparent")
         top.pack(fill="x", padx=4, pady=4)
         ctk.CTkButton(top, text="+ Add Text Field", command=self._add_text_field,
-                       fg_color=THEME["success"], hover_color="#15803D", text_color="#FFFFFF", corner_radius=10,
+                       fg_color="#66bb6a", hover_color="#4caf50",
                        height=28, width=120).pack(side="left")
         ctk.CTkButton(top, text="- Remove", command=self._remove_text_field,
-                       fg_color=THEME["danger"], hover_color="#B91C1C", text_color="#FFFFFF", corner_radius=10,
+                       fg_color="#ef5350", hover_color="#e53935",
                        height=28, width=80).pack(side="left", padx=4)
 
         # Listbox of fields (tk.Listbox — styled)
         self.fields_listbox = tk.Listbox(scroll_frame, height=6, exportselection=False,
-                                          bg=THEME["bg_card"], fg=THEME["text_main"],
-                                          selectbackground=THEME["accent"],
+                                          bg=_CLR_WHITE, fg=_CLR_TEXT,
+                                          selectbackground=_CLR_ACCENT,
                                           selectforeground="white",
                                           font=(self._body_font, 10), borderwidth=1,
                                           relief="solid", highlightthickness=0)
@@ -399,10 +392,10 @@ class QCertApp:
         # --- Single Column source ---
         props_label = ctk.CTkLabel(scroll_frame, text="Field Properties",
                                     font=ctk.CTkFont(family=self._body_font, size=14, weight="bold"),
-                                    text_color=THEME["text_main"])
+                                    text_color=_CLR_TEXT)
         props_label.pack(anchor="w", padx=6, pady=(6, 2))
-        props = ctk.CTkFrame(scroll_frame, fg_color=THEME["bg_card"], corner_radius=8,
-                              border_width=1, border_color=THEME["border"])
+        props = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
+                              border_width=1, border_color=_CLR_BORDER)
         props.pack(fill="both", expand=True, padx=4, pady=2)
 
         _FONT_FAMILIES = [
@@ -428,7 +421,7 @@ class QCertApp:
             ("Format Rule", "format_rule", "", "format_rule"),
             ("Show Bbox", "show_bbox", False, "check"),
         ]:
-            ctk.CTkLabel(props, text=label, text_color=THEME["text_main"],
+            ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
                          font=ctk.CTkFont(family=self._body_font, size=11)).grid(
                 row=row, column=0, sticky="w", padx=4, pady=1)
             if widget_type == "entry":
@@ -452,14 +445,14 @@ class QCertApp:
                 fs_frame = ctk.CTkFrame(props, fg_color="transparent")
                 fs_frame.grid(row=row, column=1, sticky="ew", padx=3, pady=1)
                 self._fs_label = ctk.CTkLabel(fs_frame, text=f"{default} pt",
-                                               width=40, text_color=THEME["text_main"])
+                                               width=40, text_color=_CLR_TEXT)
                 self._fs_var_ref = var
                 self._fs_scale = ctk.CTkSlider(
                     fs_frame, from_=6, to=72, width=80,
                     command=self._on_fontsize_slide,
-                    button_color=THEME["accent"],
-                    button_hover_color=THEME["accent_hover"],
-                    progress_color=THEME["accent"],
+                    button_color=_CLR_ACCENT,
+                    button_hover_color=_CLR_ACCENT_HOVER,
+                    progress_color=_CLR_ACCENT,
                 )
                 self._fs_scale.set(float(default))
                 self._fs_scale.pack(side="left", fill="x", expand=True)
@@ -482,7 +475,7 @@ class QCertApp:
                 f.grid(row=row, column=1, sticky="ew", padx=3, pady=1)
                 ctk.CTkEntry(f, textvariable=var, width=70, height=22).pack(side="left")
                 ctk.CTkButton(f, text="…", width=24, height=22,
-                              fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                              fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                               command=lambda v=var: self._pick_colour(v)).pack(side="left", padx=2)
             elif widget_type == "format_rule":
                 var = tk.StringVar(value=default)
@@ -496,8 +489,8 @@ class QCertApp:
                 ctk.CTkCheckBox(props, text="", variable=var,
                                 onvalue=True, offvalue=False,
                                 width=24,
-                                fg_color=THEME["accent"],
-                                hover_color=THEME["accent_hover"]).grid(
+                                fg_color=_CLR_ACCENT,
+                                hover_color=_CLR_ACCENT_HOVER).grid(
                     row=row, column=1, sticky="w", padx=3, pady=1)
             self._tf_vars[key] = var
             row += 1
@@ -511,22 +504,22 @@ class QCertApp:
         # --- Custom Fields (combine multiple columns) ---
         custom_label = ctk.CTkLabel(scroll_frame, text="Custom Fields (combine columns)",
                                      font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                                     text_color=THEME["text_main"])
+                                     text_color=_CLR_TEXT)
         custom_label.pack(anchor="w", padx=6, pady=(8, 2))
-        custom = ctk.CTkFrame(scroll_frame, fg_color=THEME["bg_card"], corner_radius=8,
-                               border_width=1, border_color=THEME["border"])
+        custom = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
+                               border_width=1, border_color=_CLR_BORDER)
         custom.pack(fill="x", padx=4, pady=2)
 
         ctk.CTkLabel(custom, text="Select columns to combine:",
-                     text_color=THEME["text_muted"],
+                     text_color=_CLR_TEXT_DIM,
                      font=ctk.CTkFont(family=self._body_font, size=10)).pack(anchor="w", padx=6, pady=(4, 0))
 
         list_frame = ctk.CTkFrame(custom, fg_color="transparent")
         list_frame.pack(fill="x", padx=6, pady=2)
         self._combined_listbox = tk.Listbox(list_frame, height=5, selectmode=tk.MULTIPLE,
                                              exportselection=False,
-                                             bg=THEME["bg_card"], fg=THEME["text_main"],
-                                             selectbackground=THEME["accent"],
+                                             bg=_CLR_WHITE, fg=_CLR_TEXT,
+                                             selectbackground=_CLR_ACCENT,
                                              selectforeground="white",
                                              font=(self._body_font, 10), borderwidth=1,
                                              relief="solid", highlightthickness=0)
@@ -537,33 +530,33 @@ class QCertApp:
 
         sep_frame = ctk.CTkFrame(custom, fg_color="transparent")
         sep_frame.pack(fill="x", padx=6, pady=2)
-        ctk.CTkLabel(sep_frame, text="Separator:", text_color=THEME["text_main"]).pack(side="left")
+        ctk.CTkLabel(sep_frame, text="Separator:", text_color=_CLR_TEXT).pack(side="left")
         self._separator_var = tk.StringVar(value=" ")
         ctk.CTkComboBox(sep_frame, variable=self._separator_var, width=100, height=26,
                          values=["(space)", "(none)", " & ", " and ", ", ", " - "]
                          ).pack(side="left", padx=4)
         ctk.CTkLabel(sep_frame, text="or type custom",
-                     text_color=THEME["text_muted"],
+                     text_color=_CLR_TEXT_DIM,
                      font=ctk.CTkFont(family=self._body_font, size=10)).pack(side="left")
 
         ctk.CTkButton(custom, text="Apply Custom Fields",
                        command=self._apply_custom_fields,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=28).pack(pady=6)
 
     def _build_image_controls(self, parent):
         top = ctk.CTkFrame(parent, fg_color="transparent")
         top.pack(fill="x", padx=4, pady=4)
         ctk.CTkButton(top, text="+ Add Image", command=self._add_image_layer,
-                       fg_color=THEME["success"], hover_color="#15803D", text_color="#FFFFFF", corner_radius=10,
+                       fg_color="#66bb6a", hover_color="#4caf50",
                        height=28, width=100).pack(side="left")
         ctk.CTkButton(top, text="- Remove", command=self._remove_image_layer,
-                       fg_color=THEME["danger"], hover_color="#B91C1C", text_color="#FFFFFF", corner_radius=10,
+                       fg_color="#ef5350", hover_color="#e53935",
                        height=28, width=80).pack(side="left", padx=4)
 
         self.images_listbox = tk.Listbox(parent, height=5, exportselection=False,
-                                          bg=THEME["bg_card"], fg=THEME["text_main"],
-                                          selectbackground=THEME["accent"],
+                                          bg=_CLR_WHITE, fg=_CLR_TEXT,
+                                          selectbackground=_CLR_ACCENT,
                                           selectforeground="white",
                                           font=(self._body_font, 10), borderwidth=1,
                                           relief="solid", highlightthickness=0)
@@ -572,10 +565,10 @@ class QCertApp:
 
         props_label = ctk.CTkLabel(parent, text="Image Properties",
                                     font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                                    text_color=THEME["text_main"])
+                                    text_color=_CLR_TEXT)
         props_label.pack(anchor="w", padx=6, pady=(6, 2))
-        props = ctk.CTkFrame(parent, fg_color=THEME["bg_card"], corner_radius=8,
-                              border_width=1, border_color=THEME["border"])
+        props = ctk.CTkFrame(parent, fg_color=_CLR_WHITE, corner_radius=8,
+                              border_width=1, border_color=_CLR_BORDER)
         props.pack(fill="both", expand=True, padx=4, pady=2)
 
         self._img_vars: dict[str, tk.Variable] = {}
@@ -591,7 +584,7 @@ class QCertApp:
             ("Rotation (deg)", "rotation", "0", "entry"),
             ("Opacity", "opacity", "1.0", "entry"),
         ]:
-            ctk.CTkLabel(props, text=label, text_color=THEME["text_main"],
+            ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
                          font=ctk.CTkFont(family=self._body_font, size=11)).grid(
                 row=row, column=0, sticky="w", padx=6, pady=2)
             if wtype == "entry":
@@ -605,21 +598,21 @@ class QCertApp:
                 ctk.CTkEntry(f, textvariable=var, width=90, height=26).pack(
                     side="left", fill="x", expand=True)
                 ctk.CTkButton(f, text="…", width=28, height=26,
-                              fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                              fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                               command=lambda v=var: self._pick_image_file(v)).pack(side="left", padx=2)
             elif wtype == "check":
                 var = tk.BooleanVar(value=default)
                 ctk.CTkCheckBox(props, text="", variable=var,
                                 onvalue=True, offvalue=False, width=24,
-                                fg_color=THEME["accent"],
-                                hover_color=THEME["accent_hover"]).grid(
+                                fg_color=_CLR_ACCENT,
+                                hover_color=_CLR_ACCENT_HOVER).grid(
                     row=row, column=1, sticky="w", padx=4, pady=2)
             self._img_vars[key] = var
             row += 1
 
         props.columnconfigure(1, weight=1)
         ctk.CTkButton(props, text="Apply", command=self._apply_image_layer,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=30).grid(row=row, column=0, columnspan=2, pady=6)
 
     def _build_output_controls(self, parent):
@@ -629,7 +622,7 @@ class QCertApp:
         # --- Output directory ---
         ctk.CTkLabel(f, text="Output folder:",
                      font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w")
+                     text_color=_CLR_TEXT).pack(anchor="w")
         dir_frame = ctk.CTkFrame(f, fg_color="transparent")
         dir_frame.pack(fill="x", pady=2)
         self.outdir_var = tk.StringVar(value=self.layout.output_dir)
@@ -637,16 +630,16 @@ class QCertApp:
             side="left", fill="x", expand=True)
         ctk.CTkButton(dir_frame, text="Browse…", width=70, height=28,
                        command=self._browse_output_dir,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(
             side="left", padx=(4, 0))
 
         # Separator line
-        ctk.CTkFrame(f, height=2, fg_color=THEME["border"]).pack(fill="x", pady=8)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- Filename template ---
         ctk.CTkLabel(f, text="Filename template:",
                      font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w")
+                     text_color=_CLR_TEXT).pack(anchor="w")
         self.fname_var = tk.StringVar(value=self.layout.output_name_template)
         self.fname_var.trace_add("write", lambda *_: self._update_fname_preview())
         ctk.CTkEntry(f, textvariable=self.fname_var, height=28).pack(fill="x", pady=2)
@@ -654,83 +647,83 @@ class QCertApp:
         # Column picker
         pick_frame = ctk.CTkFrame(f, fg_color="transparent")
         pick_frame.pack(fill="x", pady=2)
-        ctk.CTkLabel(pick_frame, text="Insert column:", text_color=THEME["text_main"]).pack(side="left")
+        ctk.CTkLabel(pick_frame, text="Insert column:", text_color=_CLR_TEXT).pack(side="left")
         self._fname_col_combo = ctk.CTkComboBox(pick_frame, values=["Index"],
                                                   width=140, height=26, state="readonly")
         self._fname_col_combo.pack(side="left", padx=4)
         ctk.CTkButton(pick_frame, text="Add", width=45, height=26,
                        command=self._insert_fname_column,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left")
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left")
         ctk.CTkLabel(f, text="Tip: combine columns like {First}_{Last}",
-                     text_color=THEME["text_muted"],
+                     text_color=_CLR_TEXT_DIM,
                      font=ctk.CTkFont(family=self._body_font, size=10)).pack(anchor="w")
 
         # Live preview
         self.fname_preview_var = tk.StringVar(value="")
-        ctk.CTkLabel(f, text="Preview:", text_color=THEME["text_main"]).pack(anchor="w", pady=(4, 0))
+        ctk.CTkLabel(f, text="Preview:", text_color=_CLR_TEXT).pack(anchor="w", pady=(4, 0))
         ctk.CTkLabel(f, textvariable=self.fname_preview_var,
-                     text_color=THEME["text_muted"], wraplength=280).pack(anchor="w")
+                     text_color=_CLR_TEXT_DIM, wraplength=280).pack(anchor="w")
 
-        ctk.CTkFrame(f, height=2, fg_color=THEME["border"]).pack(fill="x", pady=8)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- Output mode ---
         ctk.CTkLabel(f, text="Output mode:",
                      font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w")
+                     text_color=_CLR_TEXT).pack(anchor="w")
         self.outmode_var = tk.StringVar(value=self.layout.output_mode)
         ctk.CTkRadioButton(f, text="One PDF per record",
                             variable=self.outmode_var, value="individual",
-                            text_color=THEME["text_main"],
-                            fg_color=THEME["accent"],
-                            hover_color=THEME["accent_hover"]).pack(anchor="w", pady=2)
+                            text_color=_CLR_TEXT,
+                            fg_color=_CLR_ACCENT,
+                            hover_color=_CLR_ACCENT_HOVER).pack(anchor="w", pady=2)
         ctk.CTkRadioButton(f, text="Combined multi-page PDF",
                             variable=self.outmode_var, value="combined",
-                            text_color=THEME["text_main"],
-                            fg_color=THEME["accent"],
-                            hover_color=THEME["accent_hover"]).pack(anchor="w", pady=2)
+                            text_color=_CLR_TEXT,
+                            fg_color=_CLR_ACCENT,
+                            hover_color=_CLR_ACCENT_HOVER).pack(anchor="w", pady=2)
 
-        ctk.CTkFrame(f, height=2, fg_color=THEME["border"]).pack(fill="x", pady=8)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- DPI slider ---
         ctk.CTkLabel(f, text="Output DPI:",
                      font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
-                     text_color=THEME["text_main"]).pack(anchor="w")
+                     text_color=_CLR_TEXT).pack(anchor="w")
         dpi_frame = ctk.CTkFrame(f, fg_color="transparent")
         dpi_frame.pack(fill="x", pady=2)
         self.dpi_var = tk.IntVar(value=self.layout.output_dpi)
         self.dpi_scale = ctk.CTkSlider(dpi_frame, from_=72, to=600,
                                         command=self._on_dpi_change,
-                                        button_color=THEME["accent"],
-                                        button_hover_color=THEME["accent_hover"],
-                                        progress_color=THEME["accent"])
+                                        button_color=_CLR_ACCENT,
+                                        button_hover_color=_CLR_ACCENT_HOVER,
+                                        progress_color=_CLR_ACCENT)
         self.dpi_scale.set(self.layout.output_dpi)
         self.dpi_scale.pack(side="left", fill="x", expand=True)
         self.dpi_label = ctk.CTkLabel(dpi_frame, text=f"{self.layout.output_dpi} DPI",
-                                       width=60, text_color=THEME["text_main"])
+                                       width=60, text_color=_CLR_TEXT)
         self.dpi_label.pack(side="left", padx=4)
-        self.dpi_est_label = ctk.CTkLabel(f, text="", text_color=THEME["text_muted"],
+        self.dpi_est_label = ctk.CTkLabel(f, text="", text_color=_CLR_TEXT_DIM,
                                            font=ctk.CTkFont(family=self._body_font, size=10))
         self.dpi_est_label.pack(anchor="w")
         self._update_dpi_estimate()
 
-        ctk.CTkFrame(f, height=2, fg_color=THEME["border"]).pack(fill="x", pady=8)
+        ctk.CTkFrame(f, height=2, fg_color=_CLR_BORDER).pack(fill="x", pady=8)
 
         # --- Export buttons ---
         ctk.CTkButton(f, text="Export Current Record",
                        command=self._export_current,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=32).pack(fill="x", pady=2)
         ctk.CTkButton(f, text="Export All Records",
                        command=self._export_all,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=32).pack(fill="x", pady=2)
         ctk.CTkButton(f, text="Export Selected…",
                        command=self._export_selected,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER,
                        height=32).pack(fill="x", pady=2)
 
         self._output_rows_label = ctk.CTkLabel(f, text="No data loaded",
-                                                text_color=THEME["text_muted"])
+                                                text_color=_CLR_TEXT_DIM)
         self._output_rows_label.pack(anchor="w", pady=(6, 0))
 
     # ------------------------------------------------------------------
@@ -742,30 +735,30 @@ class QCertApp:
 
         ctk.CTkButton(toolbar, text="Zoom +", width=60, height=28,
                        command=lambda: self._set_zoom(self._zoom + 0.1),
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left")
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left")
         ctk.CTkButton(toolbar, text="Zoom -", width=60, height=28,
                        command=lambda: self._set_zoom(self._zoom - 0.1),
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left", padx=2)
-        self.zoom_label = ctk.CTkLabel(toolbar, text="100%", text_color=THEME["text_main"])
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left", padx=2)
+        self.zoom_label = ctk.CTkLabel(toolbar, text="100%", text_color=_CLR_TEXT)
         self.zoom_label.pack(side="left", padx=6)
 
         self.test_btn = ctk.CTkButton(toolbar, text="Test Mode: OFF",
                                        command=self._toggle_test_mode,
-                                       fg_color="#64748B", hover_color="#475569", text_color="#FFFFFF", corner_radius=10,
+                                       fg_color="#78909c", hover_color="#607d8b",
                                        height=28, width=110)
         self.test_btn.pack(side="left", padx=4)
         self.snap_btn = ctk.CTkButton(toolbar, text="Snap: OFF",
                                        command=self._toggle_snap,
-                                       fg_color="#64748B", hover_color="#475569", text_color="#FFFFFF", corner_radius=10,
+                                       fg_color="#78909c", hover_color="#607d8b",
                                        height=28, width=80)
         self.snap_btn.pack(side="left")
 
         self.coord_label = ctk.CTkLabel(toolbar, text="X: -- Y: --",
-                                         width=150, text_color=THEME["text_muted"])
+                                         width=150, text_color=_CLR_TEXT_DIM)
         self.coord_label.pack(side="right")
 
         # Canvas (tk.Canvas — no CTk equivalent)
-        self.canvas = tk.Canvas(parent, bg="#E2E8F0", highlightthickness=0, bd=0)
+        self.canvas = tk.Canvas(parent, bg="#d0d0d0", highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
         self.canvas.bind("<Motion>", self._on_canvas_motion)
@@ -819,7 +812,7 @@ class QCertApp:
             messagebox.showerror("Import Error", str(exc))
             return
 
-        self.file_label.configure(text=os.path.basename(path), text_color=THEME["text_main"])
+        self.file_label.configure(text=os.path.basename(path), text_color=_CLR_TEXT)
         if hasattr(self, "_col_combo"):
             self._col_combo.configure(values=[""] + self.data.headers)
         if hasattr(self, "_combined_listbox"):
@@ -1982,10 +1975,10 @@ class QCertApp:
         prog_win.title("Exporting…")
         prog_win.geometry("380x130")
         prog_win.transient(self.root)
-        prog_label = ctk.CTkLabel(prog_win, text="Starting…", text_color=THEME["text_main"])
+        prog_label = ctk.CTkLabel(prog_win, text="Starting…", text_color=_CLR_TEXT)
         prog_label.pack(padx=16, pady=(16, 8))
         prog_bar = ctk.CTkProgressBar(prog_win, width=320,
-                                        progress_color=THEME["accent"])
+                                        progress_color=_CLR_ACCENT)
         prog_bar.pack(padx=16, pady=8)
         prog_bar.set(0)
 
@@ -2033,16 +2026,16 @@ class _RangeDialog(ctk.CTkToplevel):
         self.result = None
 
         ctk.CTkLabel(self, text=f"Total rows: {total}",
-                     text_color=THEME["text_main"]).pack(padx=16, pady=(12, 4))
+                     text_color=_CLR_TEXT).pack(padx=16, pady=(12, 4))
         ctk.CTkLabel(self, text="Enter row numbers (comma-separated)\nor ranges like 1-10:",
-                     text_color=THEME["text_muted"]).pack(padx=16)
+                     text_color=_CLR_TEXT_DIM).pack(padx=16)
         self.entry_var = tk.StringVar(value=f"1-{total}")
         ctk.CTkEntry(self, textvariable=self.entry_var, width=260, height=30).pack(padx=16, pady=8)
 
         bf = ctk.CTkFrame(self, fg_color="transparent")
         bf.pack(pady=8)
         ctk.CTkButton(bf, text="OK", width=80, command=self._ok,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left", padx=4)
+                       fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left", padx=4)
         ctk.CTkButton(bf, text="Cancel", width=80, command=self.destroy,
                        fg_color="#78909c", hover_color="#607d8b").pack(side="left", padx=4)
 
