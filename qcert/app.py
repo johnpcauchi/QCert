@@ -29,9 +29,9 @@ from .renderer import render_single, render_batch, _page_size
 from .formatter import sanitize_for_pdf
 
 # ------------------------------------------------------------------
-# CustomTkinter appearance — light mode
+# CustomTkinter appearance — dark mode
 # ------------------------------------------------------------------
-ctk.set_appearance_mode("light")
+ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # ------------------------------------------------------------------
@@ -49,21 +49,22 @@ RESIZE_HANDLE_MM = 3.0      # corner handle hit-zone in mm
 MIN_ELEMENT_SIZE_MM = 5.0    # minimum width/height when resizing
 
 # ------------------------------------------------------------------
-# Modern Light Theme — Soft Neutral + Electric Accent
+# Dark Theme — Nord palette
 # ------------------------------------------------------------------
 THEME = {
-    "bg_main":      "#F8FAFC",   # overall background
-    "bg_sidebar":   "#E2E8F0",   # left sidebar
-    "bg_controls":  "#FFFFFF",   # middle panel
-    "bg_preview":   "#F1F5F9",   # preview area
-    "bg_card":      "#FFFFFF",   # inner cards
-    "border":       "#CBD5E1",   # subtle borders
-    "text_main":    "#0F172A",   # primary text
-    "text_muted":   "#64748B",   # muted text
-    "accent":       "#2563EB",   # primary action
-    "accent_hover": "#1D4ED8",
-    "success":      "#16A34A",
-    "danger":       "#DC2626",
+    "bg_main":      "#2E3440",   # Nord 0  — Polar Night (darkest)
+    "bg_sidebar":   "#3B4252",   # Nord 1  — slightly lighter
+    "bg_controls":  "#434C5E",   # Nord 2  — mid panel
+    "bg_preview":   "#3B4252",   # Nord 1  — preview surround
+    "bg_card":      "#4C566A",   # Nord 3  — card / input surface
+    "border":       "#4C566A",   # Nord 3  — subtle border
+    "text_main":    "#ECEFF4",   # Nord 6  — Snow Storm (brightest)
+    "text_muted":   "#D8DEE9",   # Nord 4  — Snow Storm (soft)
+    "accent":       "#88C0D0",   # Nord 8  — Frost cyan-blue
+    "accent_hover": "#81A1C1",   # Nord 9  — Frost muted blue
+    "success":      "#A3BE8C",   # Nord 14 — Aurora green
+    "danger":       "#BF616A",   # Nord 11 — Aurora red
+    "btn_text":     "#2E3440",   # dark text on bright buttons
 }
 
 
@@ -145,8 +146,14 @@ class QCertApp:
         _avail = tkfont.families()
         self._body_font = "Aptos" if "Aptos" in _avail else "Calibri"
 
-        style.configure("Treeview", rowheight=24, font=(self._body_font, 10))
-        style.configure("Treeview.Heading", font=(self._body_font, 10, "bold"))
+        style.configure("Treeview", rowheight=24, font=(self._body_font, 10),
+                        background="#4C566A", foreground="#ECEFF4",
+                        fieldbackground="#4C566A")
+        style.configure("Treeview.Heading", font=(self._body_font, 10, "bold"),
+                        background="#434C5E", foreground="#ECEFF4")
+        style.map("Treeview",
+                  background=[("selected", "#88C0D0")],
+                  foreground=[("selected", "#2E3440")])
 
         self._build_menu()
         self._build_ui()
@@ -256,7 +263,7 @@ class QCertApp:
         btn_frame.pack(fill="x", padx=8, pady=4)
         ctk.CTkButton(btn_frame, text="Open Spreadsheet…",
                        command=self._open_spreadsheet,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=30).pack(side="left")
 
         self.file_label = ctk.CTkLabel(parent, text="No file loaded",
@@ -268,14 +275,14 @@ class QCertApp:
         nav.pack(fill="x", padx=8, pady=4)
         ctk.CTkButton(nav, text="<< Prev", width=70,
                        command=self._prev_record,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=28).pack(side="left")
         self.rec_var = tk.StringVar(value="0 / 0")
         ctk.CTkLabel(nav, textvariable=self.rec_var, width=80,
                      text_color=THEME["text_main"]).pack(side="left", padx=4)
         ctk.CTkButton(nav, text="Next >>", width=70,
                        command=self._next_record,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=28).pack(side="left")
 
         # Go-to
@@ -288,7 +295,7 @@ class QCertApp:
                      border_width=1, text_color=THEME["text_main"],
                      corner_radius=8).pack(side="left", padx=4)
         ctk.CTkButton(sf, text="Go", width=40, command=self._goto_record,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=28).pack(side="left")
 
         # Search
@@ -301,7 +308,7 @@ class QCertApp:
                      border_width=1, text_color=THEME["text_main"],
                      corner_radius=8).pack(side="left", padx=4)
         ctk.CTkButton(sf2, text="Find", width=45, command=self._search_records,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=28).pack(side="left")
 
         # Data table (Treeview — no CTk equivalent)
@@ -337,12 +344,12 @@ class QCertApp:
 
         ctk.CTkButton(parent, text="Center Selected Field",
                        command=self._center_selected_field,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=30).pack(fill="x", padx=12, pady=2)
 
         ctk.CTkButton(parent, text="Insert Date",
                        command=self._insert_date_field,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=30).pack(fill="x", padx=12, pady=(2, 10))
 
     # ------------------------------------------------------------------
@@ -386,17 +393,17 @@ class QCertApp:
         top = ctk.CTkFrame(scroll_frame, fg_color="transparent")
         top.pack(fill="x", padx=4, pady=4)
         ctk.CTkButton(top, text="+ Add Text Field", command=self._add_text_field,
-                       fg_color=THEME["success"], hover_color="#15803D", text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["success"], hover_color="#8FAE7B", text_color=THEME["btn_text"], corner_radius=10,
                        height=28, width=120).pack(side="left")
         ctk.CTkButton(top, text="- Remove", command=self._remove_text_field,
-                       fg_color=THEME["danger"], hover_color="#B91C1C", text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["danger"], hover_color="#A9545C", text_color=THEME["btn_text"], corner_radius=10,
                        height=28, width=80).pack(side="left", padx=4)
 
         # Listbox of fields (tk.Listbox — styled)
         self.fields_listbox = tk.Listbox(scroll_frame, height=6, exportselection=False,
                                           bg=THEME["bg_card"], fg=THEME["text_main"],
                                           selectbackground=THEME["accent"],
-                                          selectforeground="white",
+                                          selectforeground=THEME["btn_text"],
                                           font=(self._body_font, 10), borderwidth=1,
                                           relief="solid", highlightthickness=0)
         self.fields_listbox.pack(fill="x", padx=4, pady=2)
@@ -505,7 +512,7 @@ class QCertApp:
                              border_width=1, text_color=THEME["text_main"],
                              corner_radius=8).pack(side="left")
                 ctk.CTkButton(f, text="…", width=24, height=22,
-                              fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                              fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                               command=lambda v=var: self._pick_colour(v)).pack(side="left", padx=2)
             elif widget_type == "format_rule":
                 var = tk.StringVar(value=default)
@@ -553,7 +560,7 @@ class QCertApp:
                                              exportselection=False,
                                              bg=THEME["bg_card"], fg=THEME["text_main"],
                                              selectbackground=THEME["accent"],
-                                             selectforeground="white",
+                                             selectforeground=THEME["btn_text"],
                                              font=(self._body_font, 10), borderwidth=1,
                                              relief="solid", highlightthickness=0)
         self._combined_listbox.pack(side="left", fill="x", expand=True)
@@ -576,23 +583,23 @@ class QCertApp:
 
         ctk.CTkButton(custom, text="Apply Custom Fields",
                        command=self._apply_custom_fields,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=28).pack(pady=6)
 
     def _build_image_controls(self, parent):
         top = ctk.CTkFrame(parent, fg_color="transparent")
         top.pack(fill="x", padx=4, pady=4)
         ctk.CTkButton(top, text="+ Add Image", command=self._add_image_layer,
-                       fg_color=THEME["success"], hover_color="#15803D", text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["success"], hover_color="#8FAE7B", text_color=THEME["btn_text"], corner_radius=10,
                        height=28, width=100).pack(side="left")
         ctk.CTkButton(top, text="- Remove", command=self._remove_image_layer,
-                       fg_color=THEME["danger"], hover_color="#B91C1C", text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["danger"], hover_color="#A9545C", text_color=THEME["btn_text"], corner_radius=10,
                        height=28, width=80).pack(side="left", padx=4)
 
         self.images_listbox = tk.Listbox(parent, height=5, exportselection=False,
                                           bg=THEME["bg_card"], fg=THEME["text_main"],
                                           selectbackground=THEME["accent"],
-                                          selectforeground="white",
+                                          selectforeground=THEME["btn_text"],
                                           font=(self._body_font, 10), borderwidth=1,
                                           relief="solid", highlightthickness=0)
         self.images_listbox.pack(fill="x", padx=4, pady=2)
@@ -638,7 +645,7 @@ class QCertApp:
                              corner_radius=8).pack(
                     side="left", fill="x", expand=True)
                 ctk.CTkButton(f, text="…", width=28, height=26,
-                              fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                              fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                               command=lambda v=var: self._pick_image_file(v)).pack(side="left", padx=2)
             elif wtype == "check":
                 var = tk.BooleanVar(value=default)
@@ -652,7 +659,7 @@ class QCertApp:
 
         props.columnconfigure(1, weight=1)
         ctk.CTkButton(props, text="Apply", command=self._apply_image_layer,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=30).grid(row=row, column=0, columnspan=2, pady=6)
 
     def _build_output_controls(self, parent):
@@ -673,7 +680,7 @@ class QCertApp:
             side="left", fill="x", expand=True)
         ctk.CTkButton(dir_frame, text="Browse…", width=70, height=28,
                        command=self._browse_output_dir,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10).pack(
             side="left", padx=(4, 0))
 
         # Separator line
@@ -702,7 +709,7 @@ class QCertApp:
         self._fname_col_combo.pack(side="left", padx=4)
         ctk.CTkButton(pick_frame, text="Add", width=45, height=26,
                        command=self._insert_fname_column,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left")
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10).pack(side="left")
         ctk.CTkLabel(f, text="Tip: combine columns like {First}_{Last}",
                      text_color=THEME["text_muted"],
                      font=ctk.CTkFont(family=self._body_font, size=10)).pack(anchor="w")
@@ -760,15 +767,15 @@ class QCertApp:
         # --- Export buttons ---
         ctk.CTkButton(f, text="Export Current Record",
                        command=self._export_current,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=32).pack(fill="x", pady=2)
         ctk.CTkButton(f, text="Export All Records",
                        command=self._export_all,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=32).pack(fill="x", pady=2)
         ctk.CTkButton(f, text="Export Selected…",
                        command=self._export_selected,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10,
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10,
                        height=32).pack(fill="x", pady=2)
 
         self._output_rows_label = ctk.CTkLabel(f, text="No data loaded",
@@ -784,21 +791,21 @@ class QCertApp:
 
         ctk.CTkButton(toolbar, text="Zoom +", width=60, height=28,
                        command=lambda: self._set_zoom(self._zoom + 0.1),
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left")
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10).pack(side="left")
         ctk.CTkButton(toolbar, text="Zoom -", width=60, height=28,
                        command=lambda: self._set_zoom(self._zoom - 0.1),
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left", padx=2)
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10).pack(side="left", padx=2)
         self.zoom_label = ctk.CTkLabel(toolbar, text="100%", text_color=THEME["text_main"])
         self.zoom_label.pack(side="left", padx=6)
 
         self.test_btn = ctk.CTkButton(toolbar, text="Test Mode: OFF",
                                        command=self._toggle_test_mode,
-                                       fg_color="#64748B", hover_color="#475569", text_color="#FFFFFF", corner_radius=10,
+                                       fg_color="#4C566A", hover_color="#434C5E", text_color=THEME["text_main"], corner_radius=10,
                                        height=28, width=110)
         self.test_btn.pack(side="left", padx=4)
         self.snap_btn = ctk.CTkButton(toolbar, text="Snap: OFF",
                                        command=self._toggle_snap,
-                                       fg_color="#64748B", hover_color="#475569", text_color="#FFFFFF", corner_radius=10,
+                                       fg_color="#4C566A", hover_color="#434C5E", text_color=THEME["text_main"], corner_radius=10,
                                        height=28, width=80)
         self.snap_btn.pack(side="left")
 
@@ -807,7 +814,7 @@ class QCertApp:
         self.coord_label.pack(side="right")
 
         # Canvas (tk.Canvas — no CTk equivalent)
-        self.canvas = tk.Canvas(parent, bg="#E2E8F0", highlightthickness=0, bd=0)
+        self.canvas = tk.Canvas(parent, bg="#3B4252", highlightthickness=0, bd=0)
         self.canvas.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
         self.canvas.bind("<Motion>", self._on_canvas_motion)
@@ -1244,16 +1251,16 @@ class QCertApp:
         cx = ox + page_w_px / 2
         cy = oy + page_h_px / 2
         self.canvas.create_line(cx, oy, cx, oy + page_h_px,
-                                 fill="#b0b0b0", dash=(4, 4), width=1)
+                                 fill="#5E6779", dash=(4, 4), width=1)
         self.canvas.create_line(ox, cy, ox + page_w_px, cy,
-                                 fill="#b0b0b0", dash=(4, 4), width=1)
+                                 fill="#5E6779", dash=(4, 4), width=1)
         for frac in (1/3, 2/3):
             x = ox + page_w_px * frac
             y = oy + page_h_px * frac
             self.canvas.create_line(x, oy, x, oy + page_h_px,
-                                     fill="#d0d0d0", dash=(2, 4), width=1)
+                                     fill="#4C566A", dash=(2, 4), width=1)
             self.canvas.create_line(ox, y, ox + page_w_px, y,
-                                     fill="#d0d0d0", dash=(2, 4), width=1)
+                                     fill="#4C566A", dash=(2, 4), width=1)
 
     # ==============================================================
     # Image layer actions
@@ -1588,7 +1595,7 @@ class QCertApp:
                 raw = tf.display_label()
 
             self.canvas.create_rectangle(fx, fy, fx + fw, fy + fh,
-                                          outline="#4a90d9", dash=(3, 3))
+                                          outline="#88C0D0", dash=(3, 3))
             display = raw[:40]
             self.canvas.create_text(fx + 2, fy + 2, text=display, anchor=tk.NW,
                                      fill=tf.font_colour,
@@ -1600,10 +1607,10 @@ class QCertApp:
             iw = il.width * scale
             ih = il.height * scale
             self.canvas.create_rectangle(ix, iy, ix + iw, iy + ih,
-                                          outline="#e67e22", dash=(2, 2))
+                                          outline="#D08770", dash=(2, 2))
             label = os.path.basename(il.file_path) if il.file_path else "[img]"
             self.canvas.create_text(ix + iw / 2, iy + ih / 2, text=label,
-                                     fill="#e67e22", font=("", 7))
+                                     fill="#D08770", font=("", 7))
 
         if self._center_grid:
             self._draw_center_grid(rw, rh, ox, oy)
@@ -1863,14 +1870,14 @@ class QCertApp:
         if not getattr(self, "_preview_has_pdf", False):
             pad = 3
             self.canvas.create_rectangle(ex - pad, ey - pad, ex + ew + pad, ey + eh + pad,
-                                          outline="#4a90d9", width=2)
+                                          outline="#88C0D0", width=2)
 
         corners = [(ex, ey), (ex + ew, ey), (ex, ey + eh), (ex + ew, ey + eh)]
         for cx_px, cy_px in corners:
             self.canvas.create_rectangle(
                 cx_px - handle_px, cy_px - handle_px,
                 cx_px + handle_px, cy_px + handle_px,
-                fill="#4a90d9", outline="#ffffff", width=1
+                fill="#88C0D0", outline="#2E3440", width=1
             )
 
     # ==============================================================
@@ -2087,9 +2094,10 @@ class _RangeDialog(ctk.CTkToplevel):
         bf = ctk.CTkFrame(self, fg_color="transparent")
         bf.pack(pady=8)
         ctk.CTkButton(bf, text="OK", width=80, command=self._ok,
-                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color="#FFFFFF", corner_radius=10).pack(side="left", padx=4)
+                       fg_color=THEME["accent"], hover_color=THEME["accent_hover"], text_color=THEME["btn_text"], corner_radius=10).pack(side="left", padx=4)
         ctk.CTkButton(bf, text="Cancel", width=80, command=self.destroy,
-                       fg_color="#78909c", hover_color="#607d8b").pack(side="left", padx=4)
+                       fg_color="#4C566A", hover_color="#434C5E",
+                       text_color=THEME["text_main"], corner_radius=10).pack(side="left", padx=4)
 
         self.wait_window()
 
