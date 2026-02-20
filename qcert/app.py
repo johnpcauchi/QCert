@@ -238,7 +238,7 @@ class QCertApp:
     # LEFT panel: data import + record nav + data table
     # ------------------------------------------------------------------
     def _build_data_panel(self, parent):
-        ctk.CTkLabel(parent, text="Data", font=ctk.CTkFont(size=14, weight="bold"),
+        ctk.CTkLabel(parent, text="Data", font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         btn_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -289,7 +289,7 @@ class QCertApp:
 
         # Data table (Treeview — no CTk equivalent)
         ctk.CTkLabel(parent, text="Current Record",
-                     font=ctk.CTkFont(size=11, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(6, 0))
         tree_frame = ctk.CTkFrame(parent, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=8, pady=(2, 8))
@@ -305,7 +305,7 @@ class QCertApp:
         sb.pack(side="right", fill="y")
 
     def _build_tools_panel(self, parent):
-        ctk.CTkLabel(parent, text="Tools", font=ctk.CTkFont(size=14, weight="bold"),
+        ctk.CTkLabel(parent, text="Tools", font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         # Center Grid toggle
@@ -333,7 +333,7 @@ class QCertApp:
     # ------------------------------------------------------------------
     def _build_controls_panel(self, parent):
         ctk.CTkLabel(parent, text="Fields & Layers",
-                     font=ctk.CTkFont(size=14, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w", padx=8, pady=(8, 0))
 
         scroll = ctk.CTkScrollableFrame(parent, fg_color="transparent")
@@ -341,7 +341,7 @@ class QCertApp:
 
         # --- Text Fields section (always visible) ---
         ctk.CTkLabel(scroll, text="Text Fields",
-                     font=ctk.CTkFont(size=12, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                      text_color=_CLR_ACCENT).pack(anchor="w", padx=4, pady=(6, 2))
         tf_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         tf_frame.pack(fill="x", padx=2, pady=(0, 6))
@@ -349,7 +349,7 @@ class QCertApp:
 
         # --- Images section (always visible) ---
         ctk.CTkLabel(scroll, text="Images",
-                     font=ctk.CTkFont(size=12, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                      text_color=_CLR_ACCENT).pack(anchor="w", padx=4, pady=(6, 2))
         img_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         img_frame.pack(fill="x", padx=2, pady=(0, 6))
@@ -357,7 +357,7 @@ class QCertApp:
 
         # --- Output section (always visible) ---
         ctk.CTkLabel(scroll, text="Output",
-                     font=ctk.CTkFont(size=12, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
                      text_color=_CLR_ACCENT).pack(anchor="w", padx=4, pady=(6, 2))
         out_frame = ctk.CTkFrame(scroll, fg_color="transparent")
         out_frame.pack(fill="x", padx=2, pady=(0, 6))
@@ -389,7 +389,7 @@ class QCertApp:
 
         # --- Single Column source ---
         props_label = ctk.CTkLabel(scroll_frame, text="Field Properties",
-                                    font=ctk.CTkFont(size=14, weight="bold"),
+                                    font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
                                     text_color=_CLR_TEXT)
         props_label.pack(anchor="w", padx=6, pady=(6, 2))
         props = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
@@ -420,7 +420,7 @@ class QCertApp:
             ("Show Bbox", "show_bbox", False, "check"),
         ]:
             ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
-                         font=ctk.CTkFont(size=11)).grid(
+                         font=ctk.CTkFont(family="Segoe UI", size=11)).grid(
                 row=row, column=0, sticky="w", padx=4, pady=1)
             if widget_type == "entry":
                 var = tk.StringVar(value=str(default))
@@ -501,7 +501,7 @@ class QCertApp:
 
         # --- Custom Fields (combine multiple columns) ---
         custom_label = ctk.CTkLabel(scroll_frame, text="Custom Fields (combine columns)",
-                                     font=ctk.CTkFont(size=11, weight="bold"),
+                                     font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                                      text_color=_CLR_TEXT)
         custom_label.pack(anchor="w", padx=6, pady=(8, 2))
         custom = ctk.CTkFrame(scroll_frame, fg_color=_CLR_WHITE, corner_radius=8,
@@ -510,7 +510,7 @@ class QCertApp:
 
         ctk.CTkLabel(custom, text="Select columns to combine:",
                      text_color=_CLR_TEXT_DIM,
-                     font=ctk.CTkFont(size=10)).pack(anchor="w", padx=6, pady=(4, 0))
+                     font=ctk.CTkFont(family="Segoe UI", size=10)).pack(anchor="w", padx=6, pady=(4, 0))
 
         list_frame = ctk.CTkFrame(custom, fg_color="transparent")
         list_frame.pack(fill="x", padx=6, pady=2)
@@ -535,7 +535,7 @@ class QCertApp:
                          ).pack(side="left", padx=4)
         ctk.CTkLabel(sep_frame, text="or type custom",
                      text_color=_CLR_TEXT_DIM,
-                     font=ctk.CTkFont(size=10)).pack(side="left")
+                     font=ctk.CTkFont(family="Segoe UI", size=10)).pack(side="left")
 
         ctk.CTkButton(custom, text="Apply Custom Fields",
                        command=self._apply_custom_fields,
@@ -562,7 +562,7 @@ class QCertApp:
         self.images_listbox.bind("<<ListboxSelect>>", self._on_image_select)
 
         props_label = ctk.CTkLabel(parent, text="Image Properties",
-                                    font=ctk.CTkFont(size=11, weight="bold"),
+                                    font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                                     text_color=_CLR_TEXT)
         props_label.pack(anchor="w", padx=6, pady=(6, 2))
         props = ctk.CTkFrame(parent, fg_color=_CLR_WHITE, corner_radius=8,
@@ -583,7 +583,7 @@ class QCertApp:
             ("Opacity", "opacity", "1.0", "entry"),
         ]:
             ctk.CTkLabel(props, text=label, text_color=_CLR_TEXT,
-                         font=ctk.CTkFont(size=11)).grid(
+                         font=ctk.CTkFont(family="Segoe UI", size=11)).grid(
                 row=row, column=0, sticky="w", padx=6, pady=2)
             if wtype == "entry":
                 var = tk.StringVar(value=str(default))
@@ -619,7 +619,7 @@ class QCertApp:
 
         # --- Output directory ---
         ctk.CTkLabel(f, text="Output folder:",
-                     font=ctk.CTkFont(size=11, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w")
         dir_frame = ctk.CTkFrame(f, fg_color="transparent")
         dir_frame.pack(fill="x", pady=2)
@@ -636,7 +636,7 @@ class QCertApp:
 
         # --- Filename template ---
         ctk.CTkLabel(f, text="Filename template:",
-                     font=ctk.CTkFont(size=11, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w")
         self.fname_var = tk.StringVar(value=self.layout.output_name_template)
         self.fname_var.trace_add("write", lambda *_: self._update_fname_preview())
@@ -654,7 +654,7 @@ class QCertApp:
                        fg_color=_CLR_ACCENT, hover_color=_CLR_ACCENT_HOVER).pack(side="left")
         ctk.CTkLabel(f, text="Tip: combine columns like {First}_{Last}",
                      text_color=_CLR_TEXT_DIM,
-                     font=ctk.CTkFont(size=10)).pack(anchor="w")
+                     font=ctk.CTkFont(family="Segoe UI", size=10)).pack(anchor="w")
 
         # Live preview
         self.fname_preview_var = tk.StringVar(value="")
@@ -666,7 +666,7 @@ class QCertApp:
 
         # --- Output mode ---
         ctk.CTkLabel(f, text="Output mode:",
-                     font=ctk.CTkFont(size=11, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w")
         self.outmode_var = tk.StringVar(value=self.layout.output_mode)
         ctk.CTkRadioButton(f, text="One PDF per record",
@@ -684,7 +684,7 @@ class QCertApp:
 
         # --- DPI slider ---
         ctk.CTkLabel(f, text="Output DPI:",
-                     font=ctk.CTkFont(size=11, weight="bold"),
+                     font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
                      text_color=_CLR_TEXT).pack(anchor="w")
         dpi_frame = ctk.CTkFrame(f, fg_color="transparent")
         dpi_frame.pack(fill="x", pady=2)
@@ -700,7 +700,7 @@ class QCertApp:
                                        width=60, text_color=_CLR_TEXT)
         self.dpi_label.pack(side="left", padx=4)
         self.dpi_est_label = ctk.CTkLabel(f, text="", text_color=_CLR_TEXT_DIM,
-                                           font=ctk.CTkFont(size=10))
+                                           font=ctk.CTkFont(family="Segoe UI", size=10))
         self.dpi_est_label.pack(anchor="w")
         self._update_dpi_estimate()
 
