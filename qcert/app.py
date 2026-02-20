@@ -154,6 +154,19 @@ class QCertApp:
         style.map("Treeview",
                   background=[("selected", "#88C0D0")],
                   foreground=[("selected", "#2E3440")])
+        # Modern dark scrollbars (clam theme exposes these)
+        style.configure("Vertical.TScrollbar",
+                        background="#4C566A", troughcolor="#3B4252",
+                        bordercolor="#3B4252", arrowcolor="#D8DEE9",
+                        relief="flat", borderwidth=0)
+        style.map("Vertical.TScrollbar",
+                  background=[("active", "#88C0D0"), ("pressed", "#81A1C1")])
+        style.configure("Horizontal.TScrollbar",
+                        background="#4C566A", troughcolor="#3B4252",
+                        bordercolor="#3B4252", arrowcolor="#D8DEE9",
+                        relief="flat", borderwidth=0)
+        style.map("Horizontal.TScrollbar",
+                  background=[("active", "#88C0D0"), ("pressed", "#81A1C1")])
 
         self._build_menu()
         self._build_ui()
@@ -411,7 +424,7 @@ class QCertApp:
 
         # --- Single Column source ---
         props_label = ctk.CTkLabel(scroll_frame, text="Field Properties",
-                                    font=ctk.CTkFont(family=self._body_font, size=14, weight="bold"),
+                                    font=ctk.CTkFont(family=self._body_font, size=16, weight="bold"),
                                     text_color=THEME["text_main"])
         props_label.pack(anchor="w", padx=6, pady=(6, 2))
         props = ctk.CTkFrame(scroll_frame, fg_color=THEME["bg_card"], corner_radius=8,
@@ -543,7 +556,7 @@ class QCertApp:
 
         # --- Custom Fields (combine multiple columns) ---
         custom_label = ctk.CTkLabel(scroll_frame, text="Custom Fields (combine columns)",
-                                     font=ctk.CTkFont(family=self._body_font, size=11, weight="bold"),
+                                     font=ctk.CTkFont(family=self._body_font, size=16, weight="bold"),
                                      text_color=THEME["text_main"])
         custom_label.pack(anchor="w", padx=6, pady=(8, 2))
         custom = ctk.CTkFrame(scroll_frame, fg_color=THEME["bg_card"], corner_radius=8,
