@@ -117,6 +117,13 @@ class QCertApp:
         self.root.minsize(1100, 700)
         self.root.configure(fg_color=THEME["bg_main"])
 
+        # Window icon (load icon.png from package directory if available)
+        _icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+        if os.path.isfile(_icon_path):
+            _icon_img = ImageTk.PhotoImage(Image.open(_icon_path))
+            self.root.iconphoto(True, _icon_img)
+            self._app_icon = _icon_img  # prevent garbage collection
+
         # State
         self.data = DataStore()
         self.layout = default_layout()
@@ -257,13 +264,17 @@ class QCertApp:
         self._build_preview_panel(right)
 
         # Status bar
+        status_bar = ctk.CTkFrame(self.root, height=28, fg_color=THEME["bg_sidebar"],
+                                  corner_radius=0)
+        status_bar.pack(side="bottom", fill="x")
         self.status_var = tk.StringVar(value="Ready")
-        status = ctk.CTkLabel(self.root, textvariable=self.status_var,
-                              anchor="w", height=28,
-                              fg_color=THEME["bg_sidebar"],
-                              text_color=THEME["text_muted"],
-                              corner_radius=0)
-        status.pack(side="bottom", fill="x")
+        ctk.CTkLabel(status_bar, textvariable=self.status_var,
+                     anchor="w", text_color=THEME["text_muted"],
+                     fg_color="transparent").pack(side="left", padx=8)
+        ctk.CTkLabel(status_bar, text="Created by John Paul Cauchi",
+                     anchor="e", text_color=THEME["text_muted"],
+                     font=ctk.CTkFont(size=11),
+                     fg_color="transparent").pack(side="right", padx=8)
 
     # ------------------------------------------------------------------
     # LEFT panel: data import + record nav + data table
