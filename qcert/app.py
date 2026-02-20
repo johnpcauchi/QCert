@@ -1778,6 +1778,7 @@ class QCertApp:
         return None
 
     def _sync_selected_to_panel(self):
+        self._auto_applying = True  # prevent traces from resetting other values mid-sync
         obj = self._find_element(self._selected_element)
         if isinstance(obj, TextFieldDef):
             self._tf_vars["x"].set(f"{obj.x:.1f}")
@@ -1788,6 +1789,7 @@ class QCertApp:
             self._img_vars["y"].set(f"{obj.y:.1f}")
             self._img_vars["width"].set(f"{obj.width:.1f}")
             self._img_vars["height"].set(f"{obj.height:.1f}")
+        self._auto_applying = False
 
     def _draw_selection_handles(self):
         obj = self._find_element(self._selected_element)
